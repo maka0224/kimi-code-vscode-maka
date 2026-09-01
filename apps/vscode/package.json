@@ -1,0 +1,320 @@
+{
+  "name": "kimi-code-maka",
+  "publisher": "maka",
+  "displayName": "Kimi Code Maka",
+  "description": "Kimi Code Maka - an independent fork of the Kimi Code VS Code extension",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_NAME/kimi-code-vscode-maka.git"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": false
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "assistant",
+    "code",
+    "chat",
+    "agent",
+    "mcp",
+    "skills",
+    "json",
+    "autocomplete",
+    "moonshot",
+    "kimi"
+  ],
+  "pricing": "Free",
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "icon": "resources/kimi-icon-storefront.png",
+  "contributes": {
+    "configuration": {
+      "title": "Kimi Code Maka",
+      "properties": {
+        "maka.yoloMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "自动批准常规工具调用；Agent 仍可能向你提问确认"
+        },
+        "maka.autosave": {
+          "type": "boolean",
+          "default": true,
+          "description": "在 Kimi 读取或写入文件前自动保存文件"
+        },
+        "maka.enableNewConversationShortcut": {
+          "type": "boolean",
+          "default": false,
+          "description": "Kimi 面板聚焦时，使用 Cmd/Ctrl+N 开启新对话"
+        },
+        "maka.useCtrlEnterToSend": {
+          "type": "boolean",
+          "default": false,
+          "description": "使用 Ctrl/Cmd+Enter 发送消息，而非 Enter"
+        },
+        "maka.showThinkingContent": {
+          "type": "boolean",
+          "default": true,
+          "description": "在聊天界面显示思考/推理内容"
+        },
+        "maka.showThinkingExpanded": {
+          "type": "boolean",
+          "default": false,
+          "description": "显示思考/推理内容时默认展开（需先开启「显示思考内容」）"
+        },
+        "maka.editorContext": {
+          "type": "string",
+          "default": "never",
+          "enum": [
+            "never",
+            "onConversationStart",
+            "onFileChange"
+          ],
+          "enumDescriptions": [
+            "从不共享编辑器上下文",
+            "对话开始时共享一次",
+            "活动文件变化时共享"
+          ],
+          "description": "控制何时将当前编辑器的文件与光标位置共享给 Kimi"
+        },
+        "maka.useAgentCoreV1": {
+          "type": "boolean",
+          "default": false,
+          "description": "临时回滚开关：使用旧版 v1 引擎运行 Kimi，而非当前引擎。该设置将在未来版本移除，需重载窗口后生效。"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "maka.clearAllState",
+        "title": "Kimi Code Maka: [DEBUG] Clear All State"
+      },
+      {
+        "command": "maka.openInTab",
+        "title": "Kimi Code Maka: Open in New Tab",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "maka.openInSideBar",
+        "title": "Kimi Code Maka: Open in Side Panel",
+        "icon": "$(layout-sidebar-left)"
+      },
+      {
+        "command": "maka.focusInput",
+        "title": "Kimi Code Maka: Focus Input",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "maka.insertMention",
+        "title": "Kimi Code Maka: Insert Current File",
+        "icon": "$(mention)"
+      },
+      {
+        "command": "maka.newConversation",
+        "title": "Kimi Code Maka: New Conversation",
+        "icon": "$(add)"
+      },
+      {
+        "command": "maka.showLogs",
+        "title": "Kimi Code Maka: Show Logs",
+        "icon": "$(output)"
+      },
+      {
+        "command": "maka.resetKimi",
+        "title": "Kimi Code Maka: Reset Kimi (in case of any issues/no response)",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "maka.logout",
+        "title": "Kimi Code Maka: Logout",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "maka.migrateLegacyData",
+        "title": "Kimi Code Maka: Migrate Legacy Data"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "maka.focusInput",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k"
+      },
+      {
+        "command": "maka.insertMention",
+        "key": "alt+k",
+        "mac": "alt+k",
+        "when": "editorTextFocus"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "maka-sidebar",
+          "title": "Kimi Code Maka",
+          "icon": "resources/kimi-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "maka-sidebar": [
+        {
+          "type": "webview",
+          "id": "maka.webview",
+          "name": "Kimi Code Maka"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "maka.openInTab",
+          "when": "view == maka.webview",
+          "group": "navigation"
+        },
+        {
+          "command": "maka.newConversation",
+          "when": "view == maka.webview",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "maka.clearAllState",
+          "when": "isDevelopment"
+        },
+        {
+          "command": "maka.openInTab",
+          "when": "true"
+        },
+        {
+          "command": "maka.openInSideBar",
+          "when": "true"
+        },
+        {
+          "command": "maka.focusInput",
+          "when": "true"
+        },
+        {
+          "command": "maka.insertMention",
+          "when": "true"
+        },
+        {
+          "command": "maka.newConversation",
+          "when": "true"
+        },
+        {
+          "command": "maka.showLogs",
+          "when": "true"
+        },
+        {
+          "command": "maka.resetKimi",
+          "when": "true"
+        },
+        {
+          "command": "maka.logout",
+          "when": "maka.isLoggedIn"
+        },
+        {
+          "command": "maka.migrateLegacyData",
+          "when": "true"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "maka.insertMention",
+          "group": "maka",
+          "when": "editorTextFocus"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "dev": "pnpm run dev:prepare && pnpm run \"/^dev:(extension|webview)$/\"",
+    "dev:prepare": "node scripts/prepare-dev.mjs",
+    "dev:extension": "node scripts/watch-extension.mjs",
+    "dev:webview": "vite build --config webview-ui/vite.config.ts --watch --sourcemap",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p webview-ui/tsconfig.json --noEmit",
+    "build": "pnpm run build:extension && pnpm run build:webview",
+    "build:webview": "vite build --config webview-ui/vite.config.ts",
+    "build:extension": "tsdown --config tsdown.config.ts",
+    "test": "vitest run --config vitest.config.ts",
+    "test:extension-host": "node scripts/extension-host-smoke.mjs",
+    "package:platform": "node scripts/vsix-package.mjs",
+    "package:verify": "node scripts/vsix-verify.mjs",
+    "publish:vsix": "node scripts/vsix-publish.mjs",
+    "publish:ovsx": "node scripts/ovsx-publish.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/diff": "^8.0.0",
+    "@types/katex": "^0.16.8",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/react-scroll-to-bottom": "^4.2.5",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/vscode": "1.100.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "3.9.2",
+    "acorn": "8.17.0",
+    "ovsx": "1.0.2",
+    "tailwindcss": "^4.1.4",
+    "vite": "^6.3.3",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vitest": "4.1.4"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.0.0",
+    "@fontsource-variable/inter": "5.2.8",
+    "@moonshot-ai/kimi-code-oauth": "workspace:^",
+    "@moonshot-ai/kimi-code-sdk": "workspace:^",
+    "@moonshot-ai/migration-legacy": "workspace:^",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@tabler/icons-react": "^3.36.0",
+    "ahooks": "^3.9.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "diff": "^8.0.2",
+    "fuse.js": "^7.1.0",
+    "heic-to": "^1.0.2",
+    "immer": "^11.1.0",
+    "katex": "^0.17.0",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "react-scroll-to-bottom": "^4.2.0",
+    "react-syntax-highlighter": "^16.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "shadcn": "^3.6.2",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "tw-animate-css": "^1.4.0",
+    "zustand": "^5"
+  }
+}
