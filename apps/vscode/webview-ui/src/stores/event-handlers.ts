@@ -310,6 +310,8 @@ const eventHandlers: Record<string, EventHandler> = {
       if (duration > 0) {
         lastAssistant.durationMs = duration;
       }
+      // 回合完成后自动折叠中间过程，只保留最终结果
+      lastAssistant.collapsed = true;
       if (lastAssistant.steps) {
         finishAllTextItems(lastAssistant.steps);
       }

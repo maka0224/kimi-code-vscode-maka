@@ -63,6 +63,7 @@ export const VSCodeSettings = {
     return resolveUseAgentCoreV1(getConfig().get<boolean>("useAgentCoreV1", false), process.env);
   },
 
+  /** 通知设置（maka.notifications.* 扁平配置，设置界面自动归入 Notifications 分组）。 */
   get notificationsEnabled(): boolean {
     return getConfig().get<boolean>("notifications.enabled", true);
   },

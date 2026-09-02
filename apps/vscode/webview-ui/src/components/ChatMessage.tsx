@@ -12,6 +12,7 @@ import { MediaPreviewModal } from "./MediaPreviewModal";
 import { InlineError } from "./InlineError";
 import { PlanCard } from "./PlanCard";
 import { StreamingConfirmDialog } from "./StreamingConfirmDialog";
+import { useExtensionImageUrl } from "./hooks/useExtensionImageUrl";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { useChatStore } from "@/stores";
@@ -247,6 +248,7 @@ function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMe
   const [previewMedia, setPreviewMedia] = useState<string | null>(null);
   const isCompacting = useChatStore((s) => s.isCompacting);
   const toggleMessageCollapsed = useChatStore((s) => s.toggleMessageCollapsed);
+  const avatarUrl = useExtensionImageUrl("kimi-icon.svg");
 
   const steps = message.steps || [];
   const hasSteps = steps.length > 0;
@@ -279,20 +281,30 @@ function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMe
   return (
     <div className="@container px-3 py-3 group/message">
       <div className="flex gap-3 flex-col">
-        <div className="flex flex-row items-center justify-start gap-2">
-          <div className="shrink-0 size-5 rounded flex items-center justify-center text-[10px] font-medium bg-blue-500 text-white">K</div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kimi</div>
-          {hasSteps && !isStreaming && (
+        {(() => {
+          const titleContent = (
+            <>
+              {avatarUrl ? <img src={avatarUrl} alt="Kimi" className="shrink-0 size-5 rounded" /> : null}
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kimi</div>
+            </>
+          );
+          // 可折叠时整个标题栏都是开关，不只那个小箭头
+          return hasSteps && !isStreaming ? (
             <button
               type="button"
               onClick={() => toggleMessageCollapsed(message.id)}
-              className="ml-auto p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              className="flex flex-row items-center justify-start gap-2 w-full rounded cursor-pointer group/collapse"
               title={collapsed ? "展开中间过程" : "折叠中间过程，只保留最终结果"}
             >
-              {collapsed ? <IconChevronRight className="size-3.5" /> : <IconChevronDown className="size-3.5" />}
+              {titleContent}
+              <span className="ml-auto p-0.5 text-muted-foreground group-hover/collapse:text-foreground transition-colors">
+                {collapsed ? <IconChevronRight className="size-3.5" /> : <IconChevronDown className="size-3.5" />}
+              </span>
             </button>
-          )}
-        </div>
+          ) : (
+            <div className="flex flex-row items-center justify-start gap-2">{titleContent}</div>
+          );
+        })()}
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-col">

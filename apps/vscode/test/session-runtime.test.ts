@@ -64,7 +64,7 @@ function createFakeSession(): FakeSessionBoundary {
   const setPermissions: PermissionMode[] = [];
   let approvalHandler: ApprovalHandler | undefined;
   let questionHandler: QuestionHandler | undefined;
-  let nextPromptError: Error | undefined;
+  let promptErrors: Error[] = [];
   let nextMetadataError: Error | undefined;
   let subscriptions = 0;
   let cancellations = 0;
@@ -100,11 +100,8 @@ function createFakeSession(): FakeSessionBoundary {
     },
     async prompt(input: string | PromptInput) {
       promptInputs.push(input);
-      if (nextPromptError !== undefined) {
-        const error = nextPromptError;
-        nextPromptError = undefined;
-        throw error;
-      }
+      const error = promptErrors.shift();
+      if (error !== undefined) throw error;
     },
     async steer(input: string | PromptInput) {
       steerInputs.push(input);
@@ -157,7 +154,7 @@ function createFakeSession(): FakeSessionBoundary {
       for (const listener of listeners) listener(event);
     },
     rejectNextPrompt(error) {
-      nextPromptError = error;
+      promptErrors.push(error);
     },
     rejectNextMetadataUpdate(error) {
       nextMetadataError = error;
@@ -501,11 +498,12 @@ describe("session runtime (adapts one SDK session for subscribed Webviews)", () 
     ).toHaveLength(1);
   });
 
-  it("reports a preflight error when SDK prompt setup throws before turn start", async () => {
+  it("reports a preflight error when SDK prompt setup keeps throwing before turn start", async () => {
     const { runtime, sdk, broadcasts } = createRuntime();
     sdk.rejectNextPrompt(new Error("Unable to initialize provider"));
+    sdk.rejectNextPrompt(new Error("Unable to initialize provider"));
 
-    await expect(runtime.prompt("hello")).resolves.toEqual({ status: "failed" });
+    await expect(runtime.prompt("hello")).resolves.toEqual({ status: "failed", phase: "preflight" });
 
     expect(streamData(broadcasts)).toContainEqual({
       type: "error",
@@ -515,6 +513,27 @@ describe("session runtime (adapts one SDK session for subscribed Webviews)", () 
       phase: "preflight",
       _sessionId: "session-1",
     });
+  });
+
+  it("cancels stale state and retries once when prompt setup throws before turn start", async () => {
+    const { runtime, sdk, broadcasts } = createRuntime();
+    sdk.rejectNextPrompt(new Error("Stale turn state"));
+    const completion = runtime.prompt("hello");
+    // 等首次失败、取消与重试全部完成后再发引擎事件，模拟真实时序
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+
+    await expect(completion).resolves.toEqual({ status: "finished" });
+    // 首次失败静默重试：两次 prompt、一次取消、无错误事件
+    expect(sdk.promptInputs).toEqual(["hello", "hello"]);
+    expect(sdk.cancelCount()).toBe(1);
+    expect(
+      streamData(broadcasts).filter(
+        (event) => typeof event === "object" && event !== null && "type" in event && event.type === "error",
+      ),
+    ).toHaveLength(0);
   });
 
   it("requests SDK cancellation when the active response is stopped", async () => {

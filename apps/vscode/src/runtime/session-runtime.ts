@@ -52,6 +52,8 @@ const ALREADY_GENERATING_MESSAGE = "A response is already being generated for th
 
 export interface PromptResult {
   readonly status: "finished" | "cancelled" | "failed";
+  /** 失败发生的阶段；仅 status === "failed" 且由本轮主动捕获异常时有值。 */
+  readonly phase?: "preflight" | "runtime";
 }
 
 interface SuppressedError {
@@ -108,11 +110,11 @@ export class SessionRuntime {
     // allow internally; anything that reaches this handler is an exception
     // (sensitive file, plan review, ask rule) the user must decide on.
     this.session.setApprovalHandler((request) => {
-      this.notify?.("approval", `请求审批：${request.toolName}`);
+      this.notifyWithTitle("approval", `请求审批：${request.toolName}`);
       return this.reverseRpc.requestApproval(request);
     });
     this.session.setQuestionHandler((request) => {
-      this.notify?.("question", "有一个问题等待你回答");
+      this.notifyWithTitle("question", "有一个问题等待你回答");
       return this.reverseRpc.requestQuestion(request);
     });
     this.unsubscribe = this.session.onEvent((event) => this.onSdkEvent(event));
@@ -184,12 +186,19 @@ export class SessionRuntime {
   }
 
   async prompt(input: string | LegacyContentPart[]): Promise<PromptResult> {
-    return this.runTurnAction(input, () => this.session.prompt(toSdkPromptInput(input)));
+    const action = () => this.session.prompt(toSdkPromptInput(input));
+    // 长时间运行后引擎侧可能残留未终结的状态，首次 prompt 会在回合开始前直接
+    // 抛错（表现为消息被弹回输入框）；先静默取消残留状态再重试一次，仍失败才上报
+    const first = await this.runTurnAction(input, action, { suppressError: true });
+    if (first.status !== "failed" || first.phase !== "preflight") return first;
+    await this.session.cancel().catch(() => undefined);
+    return this.runTurnAction(input, action);
   }
 
   async runTurnAction(
     input: string | LegacyContentPart[],
     action: () => Promise<void>,
+    options?: { readonly suppressError?: boolean },
   ): Promise<PromptResult> {
     this.ensureOpen();
     if (this.isBusy) {
@@ -226,8 +235,13 @@ export class SessionRuntime {
       // cancel has settled it, the failure was already reported — settling it
       // again would misreport the active turn and could emit a duplicate error.
       if (!active.settled) {
-        this.emitError(error, active.started ? "runtime" : "preflight");
-        this.settlePrompt({ status: "failed" });
+        const phase = active.started ? "runtime" : "preflight";
+        // suppressError 只压下回合开始前的失败（供 prompt 重试），回合已开始
+        // 的运行时错误必须照常上报
+        if (options?.suppressError !== true || active.started) {
+          this.emitError(error, phase);
+        }
+        this.settlePrompt({ status: "failed", phase });
       }
     }
 
@@ -529,7 +543,7 @@ export class SessionRuntime {
     this.terminalKeys.add(terminal.key);
 
     if (terminal.reason === "completed") {
-      this.notify?.("complete", "回复已生成完成");
+      this.notifyWithTitle("complete", "回复已生成完成");
       this.emitStreamEvent({
         type: "stream_complete",
         result: { status: "finished" },
@@ -555,7 +569,7 @@ export class SessionRuntime {
     const detail = terminal.error?.message ?? `Turn ended with reason: ${terminal.reason}`;
     const message = getUserMessage(code, detail);
     this.log("Session turn failed", new Error(`${code}: ${detail}`));
-    this.notify?.("error", `任务失败：${message}`);
+    this.notifyWithTitle("error", `任务失败：${message}`);
     this.emitStreamEvent({
       type: "error",
       code,
@@ -626,6 +640,12 @@ export class SessionRuntime {
     if (this.hasActiveWork) return;
     for (const resolve of this.activeWorkSettledWaiters) resolve();
     this.activeWorkSettledWaiters.clear();
+  }
+
+  private notifyWithTitle(kind: SessionNotificationKind, message: string): void {
+    // 多会话并行时通知内容容易撞车，前缀带上对话标题（缺省时退回最近一条提问）
+    const source = this.session.summary?.title ?? this.session.summary?.lastPrompt;
+    this.notify?.(kind, source ? `【${source}】${message}` : message);
   }
 
   private ensureOpen(): void {

@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-**Kimi Code Maka** 是 [Kimi Code](https://github.com/MoonshotAI/kimi-code) VS Code 扩展的社区维护独立分支（fork），基于官方扩展 `0.7.3`，本分支独立从 `0.1.0` 起版。使用独立发布者标识 `maka` 与 `maka.*` 命令/配置/视图命名空间，可与官方扩展并行安装、互不影响。本分支在上游基础上的新增/调整：Webview 界面全面中文化、上下文用量统计（状态栏百分比与进度条、tokens 明细）、额度信息面板（含 5 小时窗口进度条）、拖拽文件/文件夹插入 `@` 引用（按住 Shift，带操作提示）、Alt+Tab 切回自动聚焦输入框、斜杠命令选中改为补全而非直接发送、会话状态系统通知（审批/提问/完成/异常，`maka.notifications.*` 配置）、会话时长显示（回复完成后展示本轮用时）、单轮对话中间过程折叠（只保留最终结果）、蓝紫主题配色等。
+**Kimi Code Maka** 是 [Kimi Code](https://github.com/MoonshotAI/kimi-code) VS Code 扩展的社区维护独立分支（fork），基于官方扩展 `0.7.3`，本分支独立从 `0.1.0` 起版。使用独立发布者标识 `maka` 与 `maka.*` 命令/配置/视图命名空间，可与官方扩展并行安装、互不影响。本分支在上游基础上的新增/调整：Webview 界面全面中文化、上下文用量统计（状态栏百分比与进度条、tokens 明细）、额度信息面板（含 5 小时窗口进度条）、拖拽文件/文件夹插入 `@` 引用（按住 Shift，带操作提示）、Alt+Tab 切回自动聚焦输入框、斜杠命令选中改为补全而非直接发送、会话状态系统通知（审批/提问/完成/异常，`maka.notifications` 对象配置）、会话时长显示（回复完成后展示本轮用时）、单轮对话中间过程折叠（标题栏整体可点，回合完成后自动折叠，只保留最终结果）、蓝紫主题配色等。
 
 这是一个 **pnpm 10 的 monorepo**（`pnpm-workspace.yaml`：`packages/*` 与 `apps/*`），Node 要求 `>=24.15.0`，统一使用 TypeScript（`type: "module"`，ESM）。
 
@@ -72,6 +72,7 @@ pnpm --filter kimi-code-maka test               # vitest（test/**/*.test.ts，n
 pnpm --filter kimi-code-maka test:extension-host# 扩展宿主冒烟测试
 pnpm --filter kimi-code-maka build              # tsdown 扩展 + vite webview
 pnpm --filter kimi-code-maka package:platform   # 打包平台化 vsix（scripts/vsix-package.mjs）
+pnpm --filter kimi-code-maka package:universal  # 打包无平台标记的通用 vsix（市场上传单文件用这个）
 pnpm --filter kimi-code-maka package:verify     # 校验 vsix 产物
 pnpm --filter kimi-code-maka publish:vsix       # 发布到 VS Code Marketplace
 pnpm --filter kimi-code-maka publish:ovsx       # 发布到 Open VSX
@@ -89,6 +90,8 @@ pnpm --filter kimi-code-maka publish:ovsx       # 发布到 Open VSX
 - 全仓库统一的提交检查是 `pnpm typecheck` + `pnpm test` + `pnpm build`（README 贡献指南即要求扩展三项全绿再提 PR）。
 - 扩展侧所有命令、配置、视图 ID 一律使用 `maka.*` 命名空间（与官方扩展隔离是本分支的立足点），新增贡献项时保持一致。
 - 用户可见的界面文案使用中文（本分支定位是全中文界面）；代码标识符、包名、脚本保持英文。README/CHANGELOG 用中文，设计文档（`apps/vscode/docs/`）用英文，与既有文件各自保持一致。
+- 根 `README.md` 与 `apps/vscode/README.md`（扩展市场展示页，会打进 vsix）内容必须保持同步：修改其一必须同步另一个；市场版额外保留「使用」小节，且链接一律用绝对 URL（相对链接在市场页会失效）。
+- 修复缺陷或新增功能时必须同步更新 README：新功能记入「特性」对应版本分组，缺陷修复记入「缺陷修复」对应版本小节（两个 README 同步，CHANGELOG 同步追加版本条目）。
 - `pnpm-workspace.yaml` 中已配置 `allowBuilds` 白名单与若干 `overrides`（如剥离 `ssh2` 的可选原生依赖），调整依赖时注意这些固定项。
 
 ## 测试策略

@@ -821,7 +821,7 @@ describe("Kimi runtime (owns shared SDK sessions for Webviews)", () => {
 
     boundary.setPromptImpl(() => Promise.reject(new Error("provider down")));
 
-    await expect(opened.prompt("hi")).resolves.toEqual({ status: "failed" });
+    await expect(opened.prompt("hi")).resolves.toEqual({ status: "failed", phase: "preflight" });
     const failure = broadcasts.find(({ data }) => (data as { type?: string }).type === "error");
     expect(failure?.data).toMatchObject({ type: "error", phase: "preflight" });
     expect((failure?.data as Record<string, unknown>)["terminal"]).toBeUndefined();

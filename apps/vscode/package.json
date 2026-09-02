@@ -3,7 +3,7 @@
   "publisher": "maka",
   "displayName": "Kimi Code Maka",
   "description": "Kimi Code Maka - an independent fork of the Kimi Code VS Code extension",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -102,7 +102,7 @@
         "maka.notifications.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "会话状态变化时发送系统通知（窗口失焦时会进入系统通知中心）"
+          "description": "会话状态变化时发送通知（窗口失焦时会进入系统通知中心）"
         },
         "maka.notifications.onlyWhenUnfocused": {
           "type": "boolean",
@@ -289,6 +289,7 @@
     "test": "vitest run --config vitest.config.ts",
     "test:extension-host": "node scripts/extension-host-smoke.mjs",
     "package:platform": "node scripts/vsix-package.mjs",
+    "package:universal": "vsce package --no-dependencies --out artifacts/vsix/",
     "package:verify": "node scripts/vsix-verify.mjs",
     "publish:vsix": "node scripts/vsix-publish.mjs",
     "publish:ovsx": "node scripts/ovsx-publish.mjs"
