@@ -9,7 +9,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR_NAME/kimi-code-vscode-maka.git"
+    "url": "git+https://github.com/makabaka0224/kimi-code-vscode-maka.git"
   },
   "engines": {
     "vscode": "^1.100.0"
