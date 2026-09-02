@@ -108,7 +108,7 @@ export function useWelcomeHint(): WelcomeHint {
 
   useEffect(() => {
     bridge
-      .checkFileExists("AGENT.md")
+      .checkFileExists("AGENTS.md")
       .then(setHasAgentMd)
       .catch(() => setHasAgentMd(false));
     bridge

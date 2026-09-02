@@ -177,6 +177,7 @@ function createRuntime(legacyApproval = DEFAULT_LEGACY_APPROVAL) {
   const sdk = createFakeSession();
   const broadcasts: BroadcastRecord[] = [];
   const baselines: BaselineRecord[] = [];
+  const notifications: Array<{ kind: string; message: string }> = [];
   const runtime = new SessionRuntime({
     session: sdk.session,
     legacyApproval,
@@ -185,9 +186,10 @@ function createRuntime(legacyApproval = DEFAULT_LEGACY_APPROVAL) {
       baselines.push({ session, filePath, webviewIds });
     },
     log: () => undefined,
+    notify: (kind, message) => notifications.push({ kind, message }),
   });
   runtime.subscribe("view-1");
-  return { runtime, sdk, broadcasts, baselines };
+  return { runtime, sdk, broadcasts, baselines, notifications };
 }
 
 function streamData(records: readonly BroadcastRecord[]): unknown[] {
@@ -759,5 +761,71 @@ describe("session runtime (adapts one SDK session for subscribed Webviews)", () 
     });
 
     expect(baselines).toEqual([]);
+  });
+});
+
+describe("session notifications", () => {
+  it("notifies when an approval request is forwarded", () => {
+    const { sdk, notifications } = createRuntime();
+
+    void sdk
+      .requestApproval({
+        toolCallId: "tool-1",
+        toolName: "Bash",
+        action: "Run command",
+        display: { kind: "command", command: "pnpm test" },
+      })
+      .catch(() => undefined);
+
+    expect(notifications).toEqual([{ kind: "approval", message: "请求审批：Bash" }]);
+  });
+
+  it("notifies when a question request is forwarded", () => {
+    const { sdk, notifications } = createRuntime();
+
+    void sdk
+      .requestQuestion({
+        toolCallId: "question-1",
+        questions: [
+          {
+            question: "Choose a target",
+            header: "Target",
+            options: [{ label: "Tests", description: "Run focused tests" }],
+            multiSelect: false,
+          },
+        ],
+      })
+      .catch(() => undefined);
+
+    expect(notifications).toEqual([{ kind: "question", message: "有一个问题等待你回答" }]);
+  });
+
+  it("notifies when a turn completes", () => {
+    const { sdk, notifications } = createRuntime();
+
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+
+    expect(notifications).toEqual([{ kind: "complete", message: "回复已生成完成" }]);
+  });
+
+  it("notifies when a turn fails", () => {
+    const { sdk, notifications } = createRuntime();
+
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("failed", { code: "provider.api_error", message: "Service temporarily unavailable.", retryable: true }));
+
+    expect(notifications).toEqual([
+      { kind: "error", message: "任务失败：Service temporarily unavailable." },
+    ]);
+  });
+
+  it("does not notify when a turn is cancelled", () => {
+    const { sdk, notifications } = createRuntime();
+
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("cancelled"));
+
+    expect(notifications).toEqual([]);
   });
 });

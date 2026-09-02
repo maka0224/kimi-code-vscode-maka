@@ -3,13 +3,13 @@
   "publisher": "maka",
   "displayName": "Kimi Code Maka",
   "description": "Kimi Code Maka - an independent fork of the Kimi Code VS Code extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/makabaka0224/kimi-code-vscode-maka.git"
+    "url": "git+https://github.com/maka0224/kimi-code-vscode-maka.git"
   },
   "engines": {
     "vscode": "^1.100.0"
@@ -98,6 +98,36 @@
           "type": "boolean",
           "default": false,
           "description": "临时回滚开关：使用旧版 v1 引擎运行 Kimi，而非当前引擎。该设置将在未来版本移除，需重载窗口后生效。"
+        },
+        "maka.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "会话状态变化时发送系统通知（窗口失焦时会进入系统通知中心）"
+        },
+        "maka.notifications.onlyWhenUnfocused": {
+          "type": "boolean",
+          "default": true,
+          "description": "仅在 VS Code 窗口失焦时发送通知，聚焦时不打扰"
+        },
+        "maka.notifications.onApproval": {
+          "type": "boolean",
+          "default": true,
+          "description": "Agent 请求工具审批时通知"
+        },
+        "maka.notifications.onQuestion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Agent 提问等待回答时通知"
+        },
+        "maka.notifications.onComplete": {
+          "type": "boolean",
+          "default": true,
+          "description": "一轮回复生成完成时通知"
+        },
+        "maka.notifications.onError": {
+          "type": "boolean",
+          "default": true,
+          "description": "任务失败或会话出错时通知"
         }
       }
     },

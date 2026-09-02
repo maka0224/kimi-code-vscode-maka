@@ -11,6 +11,7 @@ import type { ContentPart as LegacyContentPart, ApprovalResponse } from "../../s
 import { Events } from "../../shared/bridge";
 import { getUserMessage } from "../../shared/errors";
 import type { ErrorPhase, UIStreamEvent } from "../../shared/types";
+import type { SessionNotificationKind } from "../notifications";
 import {
   adaptSdkEvent,
   createEventAdapterState,
@@ -36,6 +37,8 @@ export interface SessionRuntimeOptions {
     webviewIds: readonly string[],
   ) => void;
   readonly log: (message: string, error?: unknown) => void;
+  /** 会话状态系统通知；未提供时不发通知。 */
+  readonly notify?: (kind: SessionNotificationKind, message: string) => void;
 }
 
 interface ActivePrompt {
@@ -88,6 +91,7 @@ export class SessionRuntime {
   private readonly terminalKeys = new Set<string>();
   private suppressedError: SuppressedError | undefined;
   private legacyApproval: LegacyApprovalFlags;
+  private readonly notify: SessionRuntimeOptions["notify"];
   private closed = false;
 
   constructor(options: SessionRuntimeOptions) {
@@ -96,14 +100,21 @@ export class SessionRuntime {
     this.captureBaseline = options.captureBaseline;
     this.log = options.log;
     this.legacyApproval = options.legacyApproval;
+    this.notify = options.notify;
     this.reverseRpc = new ReverseRpcController((event) => this.emitStreamEvent(event));
 
     // Forward every approval request to the user. The engine permission mode
     // (mapped from the legacy flags) already auto-approves what yolo/auto
     // allow internally; anything that reaches this handler is an exception
     // (sensitive file, plan review, ask rule) the user must decide on.
-    this.session.setApprovalHandler((request) => this.reverseRpc.requestApproval(request));
-    this.session.setQuestionHandler((request) => this.reverseRpc.requestQuestion(request));
+    this.session.setApprovalHandler((request) => {
+      this.notify?.("approval", `请求审批：${request.toolName}`);
+      return this.reverseRpc.requestApproval(request);
+    });
+    this.session.setQuestionHandler((request) => {
+      this.notify?.("question", "有一个问题等待你回答");
+      return this.reverseRpc.requestQuestion(request);
+    });
     this.unsubscribe = this.session.onEvent((event) => this.onSdkEvent(event));
   }
 
@@ -191,7 +202,7 @@ export class SessionRuntime {
       this.emitError(
         new Error(ALREADY_GENERATING_MESSAGE),
         "runtime",
-        { terminal: this.hasActiveWork ? false : undefined },
+        { terminal: this.hasActiveWork ? false : undefined, code: "session.busy" },
       );
       return { status: "failed" };
     }
@@ -518,6 +529,7 @@ export class SessionRuntime {
     this.terminalKeys.add(terminal.key);
 
     if (terminal.reason === "completed") {
+      this.notify?.("complete", "回复已生成完成");
       this.emitStreamEvent({
         type: "stream_complete",
         result: { status: "finished" },
@@ -543,6 +555,7 @@ export class SessionRuntime {
     const detail = terminal.error?.message ?? `Turn ended with reason: ${terminal.reason}`;
     const message = getUserMessage(code, detail);
     this.log("Session turn failed", new Error(`${code}: ${detail}`));
+    this.notify?.("error", `任务失败：${message}`);
     this.emitStreamEvent({
       type: "error",
       code,
@@ -564,8 +577,12 @@ export class SessionRuntime {
     return suppressed.code === code && suppressed.message === message;
   }
 
-  private emitError(error: unknown, phase: ErrorPhase, options?: { readonly terminal?: boolean }): void {
-    const code = isKimiError(error) ? error.code : "internal";
+  private emitError(
+    error: unknown,
+    phase: ErrorPhase,
+    options?: { readonly terminal?: boolean; readonly code?: string },
+  ): void {
+    const code = options?.code ?? (isKimiError(error) ? error.code : "internal");
     const detail = error instanceof Error ? error.message : String(error);
     this.log(`Session ${phase} error`, error);
     this.emitStreamEvent({

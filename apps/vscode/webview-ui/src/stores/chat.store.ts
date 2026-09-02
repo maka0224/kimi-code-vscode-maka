@@ -51,8 +51,12 @@ export interface ChatMessage {
   steps?: UIStep[];
   status?: StatusUpdate;
   inlineError?: InlineError;
+  /** 本轮生成耗时（毫秒），stream_complete 时写入；历史回放不展示 */
+  durationMs?: number;
   /** False for host-only commands that do not create a forkable core turn. */
   forkable?: boolean;
+  /** 折叠中间过程（工具调用/思考等步骤），只保留最终文本结果 */
+  collapsed?: boolean;
 }
 
 export interface TokenUsage {
@@ -116,6 +120,7 @@ export interface ChatState {
   hasProcessingMedia: () => boolean;
   rollbackInput: (content: string | ContentPart[]) => void;
   respondQuestion: (answers: Record<string, string>) => Promise<void>;
+  toggleMessageCollapsed: (id: string) => void;
 
   enqueue: (content: string | ContentPart[], model: string) => void;
   removeFromQueue: (id: string) => void;
@@ -335,14 +340,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   startNewConversation: async () => {
     clearHandshakeTimer();
 
-    // Abort any ongoing stream before starting new conversation
+    // 立即清空本地状态回到欢迎页——bridge 调用在运行时断连时可能永不
+    // 返回，不能 await（否则新对话看起来"没反应"）；失败仅 toast 提示
     const { isStreaming: wasStreaming } = get();
-    if (wasStreaming) {
-      await bridge.abortChat();
-    }
-
-    await bridge.resetSession();
-    await bridge.clearTrackedFiles();
     set({
       sessionId: null,
       messages: [],
@@ -359,6 +359,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       planMode: false,
     });
     useApprovalStore.getState().clearRequests();
+
+    if (wasStreaming) {
+      void bridge.abortChat().catch(() => undefined);
+    }
+    void (async () => {
+      try {
+        await bridge.resetSession();
+        await bridge.clearTrackedFiles();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      }
+    })();
   },
 
   abort: () => {
@@ -366,6 +378,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     void bridge.abortChat().catch(() => undefined);
     set({ pendingQuestion: null });
     useApprovalStore.getState().clearRequests();
+  },
+
+  toggleMessageCollapsed: (id) => {
+    set(
+      produce((draft: ChatState) => {
+        const msg = draft.messages.find((m) => m.id === id);
+        if (msg) {
+          msg.collapsed = !msg.collapsed;
+        }
+      }),
+    );
   },
 
   addDraftMedia: (id, dataUri) => {

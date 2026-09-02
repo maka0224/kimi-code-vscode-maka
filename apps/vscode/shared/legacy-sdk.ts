@@ -67,6 +67,8 @@ export interface ToolResult {
 
 export interface TurnBegin {
   user_input: string | ContentPart[];
+  /** 持久化记录的真实时间（毫秒），仅历史回放携带；实时事件缺省，用当前时间 */
+  time?: number;
 }
 
 export interface TokenUsage {

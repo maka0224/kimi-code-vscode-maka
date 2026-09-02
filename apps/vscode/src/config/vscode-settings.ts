@@ -63,6 +63,30 @@ export const VSCodeSettings = {
     return resolveUseAgentCoreV1(getConfig().get<boolean>("useAgentCoreV1", false), process.env);
   },
 
+  get notificationsEnabled(): boolean {
+    return getConfig().get<boolean>("notifications.enabled", true);
+  },
+
+  get notificationsOnlyWhenUnfocused(): boolean {
+    return getConfig().get<boolean>("notifications.onlyWhenUnfocused", true);
+  },
+
+  get notificationsOnApproval(): boolean {
+    return getConfig().get<boolean>("notifications.onApproval", true);
+  },
+
+  get notificationsOnQuestion(): boolean {
+    return getConfig().get<boolean>("notifications.onQuestion", true);
+  },
+
+  get notificationsOnComplete(): boolean {
+    return getConfig().get<boolean>("notifications.onComplete", true);
+  },
+
+  get notificationsOnError(): boolean {
+    return getConfig().get<boolean>("notifications.onError", true);
+  },
+
   getExtensionConfig(): ExtensionConfig {
     return {
       yoloMode: this.yoloMode,

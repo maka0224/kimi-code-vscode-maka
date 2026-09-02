@@ -11,6 +11,7 @@ import { handlers, type BroadcastFn, type HandlerContext, type ReloadWebviewFn, 
 import { BaselineManager, type BaselineSession } from "./managers/baseline.manager";
 import { FileManager } from "./managers/file.manager";
 import { KimiRuntime } from "./runtime/kimi-runtime";
+import { notifySessionEvent } from "./notifications";
 import type { SessionRuntime } from "./runtime/session-runtime";
 import { areSameFsPath } from "./utils/fs-path";
 import {
@@ -47,6 +48,7 @@ export class BridgeHandler {
           this.captureFileBaseline(session, filePath, webviewIds);
         },
         log: (message, error) => this.logRuntimeError(message, error),
+        notify: notifySessionEvent,
       });
     } catch (error) {
       // No silent fallback: report the failure with the rollback path, so the

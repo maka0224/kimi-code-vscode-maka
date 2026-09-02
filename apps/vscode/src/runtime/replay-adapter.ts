@@ -57,6 +57,8 @@ function replayAgentToWebviewEvents(
   const events: UIStreamEvent[] = [];
   let turnOpen = false;
   let step = 0;
+  // 回合内最后一条持久化记录的真实时间，用于给回放的 stream_complete 打时间戳
+  let lastRecordTime: number | undefined;
   const toolDisplays = new Map<string, readonly DisplayBlock[]>();
 
   events.push(
@@ -76,7 +78,12 @@ function replayAgentToWebviewEvents(
   const completeTurn = () => {
     if (!turnOpen) return;
     const result: RunResult = { status: "finished" };
-    events.push({ type: "stream_complete", result, _sessionId: sessionId });
+    events.push({
+      type: "stream_complete",
+      result,
+      _sessionId: sessionId,
+      ...(lastRecordTime === undefined ? {} : { _time: lastRecordTime }),
+    });
     turnOpen = false;
   };
 
@@ -104,6 +111,7 @@ function replayAgentToWebviewEvents(
                 type: "TurnBegin",
                 payload: {
                   user_input: imported?.input ?? replayUserInput(message.content, message.origin),
+                  time: record.time,
                 },
               },
               sessionId,
@@ -205,6 +213,9 @@ function replayAgentToWebviewEvents(
       case "goal_updated":
         break;
     }
+    // 在循环末尾更新：用户消息开启新回合前会先 completeTurn 上一个回合，
+    // 其时间戳必须仍是上一个回合的末条记录
+    lastRecordTime = record.time;
   }
 
   completeTurn();

@@ -1,5 +1,5 @@
 import { useState, Fragment, memo } from "react";
-import { IconLoader3, IconGitFork } from "@tabler/icons-react";
+import { IconLoader3, IconGitFork, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { Content } from "@/lib/content";
 import { Markdown } from "./Markdown";
@@ -24,6 +24,15 @@ interface ChatMessageProps {
   /** 0-indexed turn number for this message */
   turnIndex?: number;
   isStreaming?: boolean;
+}
+
+function formatDuration(ms: number): string {
+  const totalSec = Math.max(1, Math.round(ms / 1000));
+  if (totalSec < 60) return `${totalSec} 秒`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min < 60) return sec > 0 ? `${min} 分 ${sec} 秒` : `${min} 分钟`;
+  return `${Math.floor(min / 60)} 小时 ${min % 60} 分`;
 }
 
 function ThinkingIndicator() {
@@ -237,11 +246,14 @@ function UserMessage({ message }: { message: ChatMessageType }) {
 function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMessageType; turnIndex?: number; isStreaming?: boolean }) {
   const [previewMedia, setPreviewMedia] = useState<string | null>(null);
   const isCompacting = useChatStore((s) => s.isCompacting);
+  const toggleMessageCollapsed = useChatStore((s) => s.toggleMessageCollapsed);
 
   const steps = message.steps || [];
   const hasSteps = steps.length > 0;
   const images = Content.getImages(message.content);
   const videos = Content.getVideos(message.content);
+  // 折叠态：隐藏中间过程（工具调用/思考/steer 等步骤），只保留最终文本结果
+  const collapsed = message.collapsed === true && !isStreaming && hasSteps;
 
   const stepHasIndicator = steps.map((step) => step.items.some((item) => item.type === "tool_use" || item.type === "thinking" || item.type === "compaction"));
 
@@ -270,30 +282,50 @@ function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMe
         <div className="flex flex-row items-center justify-start gap-2">
           <div className="shrink-0 size-5 rounded flex items-center justify-center text-[10px] font-medium bg-blue-500 text-white">K</div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kimi</div>
+          {hasSteps && !isStreaming && (
+            <button
+              type="button"
+              onClick={() => toggleMessageCollapsed(message.id)}
+              className="ml-auto p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              title={collapsed ? "展开中间过程" : "折叠中间过程，只保留最终结果"}
+            >
+              {collapsed ? <IconChevronRight className="size-3.5" /> : <IconChevronDown className="size-3.5" />}
+            </button>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-col">
             <div className="[&>*:not(:last-child)]:mb-3">
-              {hasSteps &&
-                groupStepsByPlanMode(steps).map((group, gi) => {
-                  const totalSteps = steps.length;
-                  const stepsContent = group.steps.map((step, i) => {
-                    const globalIndex = group.startIndex + i;
-                    const isLastInGroup = i === group.steps.length - 1;
-                    const isLastOverall = globalIndex === totalSteps - 1;
-                    const hasIndicator = stepHasIndicator[globalIndex];
-                    const hasNextIndicator = stepHasIndicator.slice(globalIndex + 1).some(Boolean);
-                    const showConnector = hasIndicator && hasNextIndicator && !isLastInGroup && !isLastOverall;
-                    return <StepContent key={step.n} step={step} showConnector={showConnector} />;
-                  });
+              {collapsed ? (
+                contentToCopy.trim().length > 0 ? (
+                  <Markdown content={contentToCopy} className="text-xs leading-relaxed @[420px]:pl-5" enableEnrichment />
+                ) : (
+                  <p className="text-xs text-muted-foreground @[420px]:pl-5">（本轮无文本结果）</p>
+                )
+              ) : (
+                <>
+                  {hasSteps &&
+                    groupStepsByPlanMode(steps).map((group, gi) => {
+                      const totalSteps = steps.length;
+                      const stepsContent = group.steps.map((step, i) => {
+                        const globalIndex = group.startIndex + i;
+                        const isLastInGroup = i === group.steps.length - 1;
+                        const isLastOverall = globalIndex === totalSteps - 1;
+                        const hasIndicator = stepHasIndicator[globalIndex];
+                        const hasNextIndicator = stepHasIndicator.slice(globalIndex + 1).some(Boolean);
+                        const showConnector = hasIndicator && hasNextIndicator && !isLastInGroup && !isLastOverall;
+                        return <StepContent key={step.n} step={step} showConnector={showConnector} />;
+                      });
 
-                  if (group.planMode) {
-                    return <PlanCard key={`plan-${gi}`}>{stepsContent}</PlanCard>;
-                  }
-                  return <Fragment key={`normal-${gi}`}>{stepsContent}</Fragment>;
-                })}
-              {!hasSteps && displayContent && <Markdown content={displayContent} className="text-xs leading-relaxed @[420px]:pl-5" enableEnrichment={!isStreaming} />}
+                      if (group.planMode) {
+                        return <PlanCard key={`plan-${gi}`}>{stepsContent}</PlanCard>;
+                      }
+                      return <Fragment key={`normal-${gi}`}>{stepsContent}</Fragment>;
+                    })}
+                  {!hasSteps && displayContent && <Markdown content={displayContent} className="text-xs leading-relaxed @[420px]:pl-5" enableEnrichment={!isStreaming} />}
+                </>
+              )}
               {(images.length > 0 || videos.length > 0) && (
                 <div className="@[420px]:pl-5">
                   <MessageMedia images={images} videos={videos} onPreview={setPreviewMedia} />
@@ -315,6 +347,9 @@ function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMe
                   <CopyButton content={contentToCopy} />
                   {message.forkable !== false && turnIndex !== undefined && turnIndex >= 0 && <ForkButton turnIndex={turnIndex} />}
                 </div>
+              )}
+              {!isStreaming && message.durationMs !== undefined && (
+                <span className="text-[10px] text-muted-foreground pt-1 pl-1 shrink-0">用时 {formatDuration(message.durationMs)}</span>
               )}
             </div>
           </div>

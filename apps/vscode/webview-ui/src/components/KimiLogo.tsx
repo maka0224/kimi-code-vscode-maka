@@ -1,22 +1,20 @@
 export function KimiLogo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 200 200" className={className} role="img" aria-label="K">
-      <circle cx="100" cy="100" r="96" fill="#EFE6D2" />
-      <path
-        d="M48 44 L48 156 L76 156 L76 120 L88 108 L120 156 L152 156 L108 96 L148 44 L114 44 L76 90 L76 44 Z"
-        fill="#8C7350"
-        stroke="#6E5836"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <circle cx="128" cy="82" r="34" fill="#EAD9BD" stroke="#B49A72" strokeWidth="3" />
-      <path d="M122 52 Q126 38 128 42 Q130 38 134 52 Q128 48 122 52 Z" fill="#C9B48C" />
-      <circle cx="118" cy="78" r="6.5" fill="#4A3B28" />
-      <circle cx="140" cy="78" r="6.5" fill="#4A3B28" />
-      <circle cx="120" cy="76" r="2.2" fill="#FFFFFF" />
-      <circle cx="142" cy="76" r="2.2" fill="#FFFFFF" />
-      <ellipse cx="129" cy="88" rx="3" ry="2.4" fill="#C9A87E" />
-      <path d="M120 96 Q129 103 138 96" fill="none" stroke="#8C7350" strokeWidth="2.5" strokeLinecap="round" />
+    <svg viewBox="46 32 120 140" className={className} role="img" aria-label="K">
+      <g strokeLinejoin="round">
+        {/* 侧面（暗） */}
+        <path d="M62 148 L78 164 L78 74 L62 58 Z" fill="#0e5fa8" />
+        <path d="M104 106 L138 140 L122 156 L88 122 Z" fill="#0e5fa8" />
+        <path d="M94 88 L134 48 L150 64 L110 104 Z" fill="#0e5fa8" />
+        {/* 正面（亮） */}
+        <path d="M62 148 L62 58 L46 42 L46 132 Z" fill="#38bdf8" />
+        <path d="M104 106 L88 122 L72 106 L88 90 Z" fill="#38bdf8" />
+        <path d="M94 88 L110 104 L150 64 L134 48 Z" fill="#38bdf8" />
+        {/* 顶面 */}
+        <path d="M46 42 L62 58 L78 74 L62 58 Z" fill="#7dd3fc" />
+        <path d="M134 48 L150 64 L166 48 L150 32 Z" fill="#7dd3fc" />
+        <path d="M122 156 L138 140 L154 156 L138 172 Z" fill="#7dd3fc" />
+      </g>
     </svg>
   );
 }

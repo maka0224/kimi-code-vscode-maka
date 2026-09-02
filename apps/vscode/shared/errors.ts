@@ -79,6 +79,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   "session.state_invalid": "Session data is invalid.",
   "session.init_failed": "Failed to initialize the session.",
   "session.closed": "Session was closed.",
+  "session.busy": "当前会话正在生成回复，请等待完成后再发送。",
   "session.fork_active_turn": "Wait for the current response before forking.",
   "turn.agent_busy": "A message is being sent. Please wait.",
   "provider.api_error": "Service temporarily unavailable.",

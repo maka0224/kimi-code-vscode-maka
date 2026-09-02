@@ -296,7 +296,7 @@ const eventHandlers: Record<string, EventHandler> = {
     }
   },
 
-  stream_complete: (draft, _payload: { result: RunResult }) => {
+  stream_complete: (draft, payload: { result: RunResult; _time?: number }) => {
     addTokenUsage(draft.tokenUsage, draft.activeTokenUsage);
     draft.activeTokenUsage = createEmptyTokenUsage();
     draft.isStreaming = false;
@@ -304,8 +304,15 @@ const eventHandlers: Record<string, EventHandler> = {
     draft.pendingInput = null;
     useApprovalStore.getState().clearRequests();
     const lastAssistant = getLastAssistant(draft);
-    if (lastAssistant?.steps) {
-      finishAllTextItems(lastAssistant.steps);
+    if (lastAssistant) {
+      // 回放事件带 _time（持久化记录的真实时间），实时事件用当前时间
+      const duration = (payload._time ?? Date.now()) - lastAssistant.timestamp;
+      if (duration > 0) {
+        lastAssistant.durationMs = duration;
+      }
+      if (lastAssistant.steps) {
+        finishAllTextItems(lastAssistant.steps);
+      }
     }
   },
 
@@ -341,11 +348,14 @@ const eventHandlers: Record<string, EventHandler> = {
     draft.tokenUsage = createEmptyTokenUsage();
     draft.activeTokenUsage = createEmptyTokenUsage();
 
+    // 历史回放携带持久化记录的真实时间，实时事件用当前时间
+    const timestamp = payload.time ?? Date.now();
+
     draft.messages.push({
       id: crypto.randomUUID(),
       role: "user",
       content: payload.user_input,
-      timestamp: Date.now(),
+      timestamp,
       forkable: payload.forkable,
     });
 
@@ -353,7 +363,7 @@ const eventHandlers: Record<string, EventHandler> = {
       id: crypto.randomUUID(),
       role: "assistant",
       content: "",
-      timestamp: Date.now(),
+      timestamp,
       steps: [],
       forkable: payload.forkable,
     });
@@ -411,7 +421,10 @@ const eventHandlers: Record<string, EventHandler> = {
     addTokenUsage(draft.tokenUsage, draft.activeTokenUsage);
     draft.activeTokenUsage = createEmptyTokenUsage();
 
-    draft.isStreaming = false;
+    // 不在这里解锁：引擎在"step 被中断但 turn 继续"（如 steer/步骤级取消）时也会发
+    // 此事件，此时后续 StepBegin/ContentPart 还会到达，必须保持 isStreaming。turn 真正
+    // 结束时必然再有 stream_complete 或终态 error（见 session-runtime emitTerminal），
+    // 由它们负责解锁；提前解锁会让发送撞上仍在运行的 turn（busy 冲突）。
     useApprovalStore.getState().clearRequests();
     const lastAssistant = getLastAssistant(draft);
     if (lastAssistant?.steps) {

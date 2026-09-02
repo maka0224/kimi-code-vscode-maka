@@ -7,7 +7,7 @@ import {
   type ThinkingEffort,
 } from "@moonshot-ai/kimi-code-sdk";
 
-import type { RuntimeBroadcast } from "./session-runtime";
+import type { RuntimeBroadcast, SessionRuntimeOptions } from "./session-runtime";
 import {
   corePermissionForLegacyApproval,
   legacyApprovalMetadata,
@@ -28,6 +28,8 @@ export interface KimiRuntimeOptions {
     webviewIds: readonly string[],
   ) => void;
   readonly log: (message: string, error?: unknown) => void;
+  /** 会话状态系统通知，透传给每个 SessionRuntime；未提供时不发通知。 */
+  readonly notify?: SessionRuntimeOptions["notify"];
   readonly homeDir?: string;
   readonly harness?: KimiHarness;
   /**
@@ -54,6 +56,7 @@ export class KimiRuntime {
   private readonly broadcast: RuntimeBroadcast;
   private readonly captureBaseline: KimiRuntimeOptions["captureBaseline"];
   private readonly log: KimiRuntimeOptions["log"];
+  private readonly notify: KimiRuntimeOptions["notify"];
   private readonly sessions = new Map<string, SessionRuntime>();
   private readonly sessionByView = new Map<string, string>();
   private readonly viewChains = new Map<string, Promise<void>>();
@@ -63,6 +66,7 @@ export class KimiRuntime {
     this.broadcast = options.broadcast;
     this.captureBaseline = options.captureBaseline;
     this.log = options.log;
+    this.notify = options.notify;
     const createHarness = options.useAgentCoreV1 ? createKimiHarness : createKimiHarnessV2;
     this.harness =
       options.harness ??
@@ -273,6 +277,7 @@ export class KimiRuntime {
       broadcast: this.broadcast,
       captureBaseline: this.captureBaseline,
       log: this.log,
+      notify: this.notify,
     });
     this.sessions.set(session.id, runtime);
     return runtime;

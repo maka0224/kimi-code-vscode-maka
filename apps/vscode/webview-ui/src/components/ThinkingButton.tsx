@@ -59,7 +59,9 @@ export function ThinkingButton({ mode, effort, efforts = [], alwaysOn = false, d
           </TooltipTrigger>
           <TooltipContent>思考强度：{label(effort)}</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="start">
+        {/* 显式 w-72!：覆盖基类 w-(--radix-dropdown-menu-trigger-width)，
+            否则内容被裁到触发按钮宽度，cacheNote 放不下 */}
+        <DropdownMenuContent align="start" className="w-72!">
           {options.map((option) => (
             <DropdownMenuItem key={option} onClick={() => onSelectEffort(option)} className="text-xs gap-2">
               <IconCheck className={cn("size-3", option !== effort && "opacity-0")} />
@@ -67,7 +69,7 @@ export function ThinkingButton({ mode, effort, efforts = [], alwaysOn = false, d
             </DropdownMenuItem>
           ))}
           {cacheNote !== undefined && (
-            <div className="w-44 px-2 py-1.5 text-[10px] leading-snug whitespace-normal text-muted-foreground">
+            <div className="px-2 py-1.5 text-[10px] leading-snug whitespace-normal text-muted-foreground">
               {cacheNote}
             </div>
           )}

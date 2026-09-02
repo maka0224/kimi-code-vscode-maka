@@ -570,4 +570,17 @@ describe("Webview mid-turn warnings", () => {
       expect(boundary.streamChat).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("keeps the composer locked when a step is interrupted but the turn continues", () => {
+    useChatStore.getState().sendMessage("first message");
+    expect(useChatStore.getState().isStreaming).toBe(true);
+
+    // 引擎在 step 级中断（如 steer/步骤级取消）后仍会继续同一 turn，
+    // 解锁必须由随后的终态事件完成，否则发送会撞上仍在运行的 turn。
+    useChatStore.getState().processEvent({ type: "StepInterrupted", payload: {} });
+    expect(useChatStore.getState().isStreaming).toBe(true);
+
+    useChatStore.getState().processEvent({ type: "stream_complete", result: { status: "finished" } });
+    expect(useChatStore.getState().isStreaming).toBe(false);
+  });
 });

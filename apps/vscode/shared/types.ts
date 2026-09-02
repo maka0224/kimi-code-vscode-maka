@@ -60,7 +60,7 @@ export interface StreamError {
 
 export type UIStreamEvent =
   | { type: "session_start"; sessionId: string; model?: string; _sessionId?: string }
-  | { type: "stream_complete"; result: RunResult; _sessionId?: string }
+  | { type: "stream_complete"; result: RunResult; _sessionId?: string; _time?: number }
   | (StreamError & { _sessionId?: string })
   | (StreamEvent & { _sessionId?: string });
 
