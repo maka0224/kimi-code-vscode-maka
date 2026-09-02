@@ -239,6 +239,10 @@ class Bridge {
     return this.call<{ ok: boolean }>(Methods.DeleteKimiSession, { sessionId });
   }
 
+  renameSession(sessionId: string, title: string) {
+    return this.call<{ ok: boolean }>(Methods.RenameKimiSession, { sessionId, title });
+  }
+
   forkSession(sessionId: string, turnIndex: number) {
     return this.call<{ sessionId: string } | null>(Methods.ForkKimiSession, { sessionId, turnIndex });
   }

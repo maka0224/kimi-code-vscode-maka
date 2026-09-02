@@ -18,6 +18,8 @@ import { FilePickerMenu } from '../FilePickerMenu'
 import { MediaThumbnail } from '../MediaThumbnail'
 import { MediaPreviewModal } from '../MediaPreviewModal'
 import { BottomToolbar } from '../BottomToolbar'
+import { ChatStatus } from '../ChatStatus'
+import { UsagePanel } from '../UsagePanel'
 import { StreamingConfirmDialog } from '../StreamingConfirmDialog'
 import { ThinkingButton } from '../ThinkingButton'
 import { PlanModeButton } from '../PlanModeButton'
@@ -65,7 +67,9 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     getMediaInConversation,
     pendingInput,
     planMode,
-    messages
+    messages,
+    sessionId,
+    lastStatus
   } = useChatStore()
   const {
     currentModel,
@@ -75,7 +79,8 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     selectThinkingEffort,
     models,
     extensionConfig,
-    getCurrentThinkingMode
+    getCurrentThinkingMode,
+    isLoggedIn
   } = useSettingsStore()
 
   const isProcessing = hasProcessingMedia()
@@ -334,7 +339,9 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     }
   }, [])
 
-  // 全局面板级的文件拖拽检测，仅用于展示提示条（实际落点处理在下方容器上）
+  // 全局面板级的文件拖拽检测，仅用于展示蒙层提示（实际落点处理在下方容器上）
+  // 必须用捕获阶段监听：useMediaUpload 在 document 冒泡阶段对 dragover/drop
+  // 调用了 stopPropagation，冒泡到 window 的监听永远收不到事件
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {
@@ -351,15 +358,15 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
       if (!e.relatedTarget) setIsDraggingFile(false)
     }
     const reset = () => setIsDraggingFile(false)
-    window.addEventListener('dragover', onDragOver)
-    window.addEventListener('dragleave', onDragLeave)
-    window.addEventListener('drop', reset)
-    window.addEventListener('dragend', reset)
+    window.addEventListener('dragover', onDragOver, true)
+    window.addEventListener('dragleave', onDragLeave, true)
+    window.addEventListener('drop', reset, true)
+    window.addEventListener('dragend', reset, true)
     return () => {
-      window.removeEventListener('dragover', onDragOver)
-      window.removeEventListener('dragleave', onDragLeave)
-      window.removeEventListener('drop', reset)
-      window.removeEventListener('dragend', reset)
+      window.removeEventListener('dragover', onDragOver, true)
+      window.removeEventListener('dragleave', onDragLeave, true)
+      window.removeEventListener('drop', reset, true)
+      window.removeEventListener('dragend', reset, true)
     }
   }, [])
 
@@ -562,15 +569,15 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
         <div
           className={cn(
-            'border border-input rounded-xl bg-card shadow-sm overflow-hidden transition-shadow focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/25',
+            'relative border border-input rounded-xl bg-card shadow-sm overflow-hidden transition-shadow focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/25',
             isDragOver && 'ring-2 ring-ring/50 border-primary/50'
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
           {isDraggingFile && (
-            <div className="px-2.5 pt-1.5 text-[10px] leading-snug text-primary">
-              按住 Shift 键将文件或文件夹拖至输入框，松开后在光标处插入引用
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+              <span className="text-xs text-primary">按住 Shift 拖动后释放，在光标处插入引用</span>
             </div>
           )}
           {draftMedia.length > 0 && (
@@ -683,6 +690,13 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <ChatStatus />
+              {isLoggedIn && <UsagePanel />}
+              {/* 与右侧发送工具组拉开距离；两侧组件都不可见时不渲染 */}
+              {(lastStatus || sessionId || isLoggedIn) && (
+                <div className="w-px h-4 bg-border/60 mx-0.5" />
+              )}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

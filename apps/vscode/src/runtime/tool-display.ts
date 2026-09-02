@@ -25,7 +25,8 @@ export function describeToolDisplay(display: ToolInputDisplay): string {
     case "task_stop":
       return display.task_description;
     case "plan_review":
-      return display.plan;
+      // 计划全文走 display 的 plan 块渲染，description 只放短提示
+      return "计划内容如下，请审阅";
     case "goal_start":
       return display.objective;
     case "generic":
@@ -61,13 +62,14 @@ export function toLegacyDisplay(display: ToolInputDisplay): DisplayBlock[] {
           status: item.status === "done" || item.status === "in_progress" ? item.status : "pending",
         })),
       }];
+    case "plan_review":
+      return [{ type: "plan", text: display.plan }];
     case "search":
     case "url_fetch":
     case "agent_call":
     case "skill_call":
     case "task":
     case "task_stop":
-    case "plan_review":
     case "goal_start":
     case "generic":
       return [{ type: "brief", text: describeToolDisplay(display) }];

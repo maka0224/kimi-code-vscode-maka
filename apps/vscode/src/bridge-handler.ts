@@ -43,6 +43,7 @@ export class BridgeHandler {
       this.runtime = new KimiRuntime({
         version: VSCodeSettings.getExtensionConfig().version,
         useAgentCoreV1,
+        autoGenerateSessionTitle: () => VSCodeSettings.autoGenerateSessionTitle,
         broadcast,
         captureBaseline: (session, filePath, webviewIds) => {
           this.captureFileBaseline(session, filePath, webviewIds);

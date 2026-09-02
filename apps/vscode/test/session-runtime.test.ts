@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 
 import { Events } from "../shared/bridge";
 import type { LegacyApprovalFlags } from "../src/runtime/legacy-approval";
-import { SessionRuntime } from "../src/runtime/session-runtime";
+import { extractPromptText, fallbackSessionTitle, SessionRuntime } from "../src/runtime/session-runtime";
 
 interface BroadcastRecord {
   readonly event: string;
@@ -170,7 +170,10 @@ function createFakeSession(): FakeSessionBoundary {
   };
 }
 
-function createRuntime(legacyApproval = DEFAULT_LEGACY_APPROVAL) {
+function createRuntime(
+  legacyApproval = DEFAULT_LEGACY_APPROVAL,
+  autoSessionTitle?: (firstPromptText: string) => Promise<string | undefined>,
+) {
   const sdk = createFakeSession();
   const broadcasts: BroadcastRecord[] = [];
   const baselines: BaselineRecord[] = [];
@@ -184,6 +187,7 @@ function createRuntime(legacyApproval = DEFAULT_LEGACY_APPROVAL) {
     },
     log: () => undefined,
     notify: (kind, message) => notifications.push({ kind, message }),
+    ...(autoSessionTitle === undefined ? {} : { autoSessionTitle }),
   });
   runtime.subscribe("view-1");
   return { runtime, sdk, broadcasts, baselines, notifications };
@@ -846,5 +850,102 @@ describe("session notifications", () => {
     sdk.emit(turnEnded("cancelled"));
 
     expect(notifications).toEqual([]);
+  });
+
+  it("names the session from the first prompt once a turn completes", async () => {
+    const titleInputs: string[] = [];
+    const { runtime, sdk } = createRuntime(DEFAULT_LEGACY_APPROVAL, async (text) => {
+      titleInputs.push(text);
+      return undefined;
+    });
+
+    const completion = runtime.prompt("帮我修复登录页的样式问题");
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+    await completion;
+
+    expect(titleInputs).toEqual(["帮我修复登录页的样式问题"]);
+  });
+
+  it("patches the summary and broadcasts when the namer applies a title locally", async () => {
+    const { runtime, sdk, broadcasts } = createRuntime(DEFAULT_LEGACY_APPROVAL, async () => "首条提问前二十字");
+
+    const completion = runtime.prompt("帮我修复登录页的样式问题");
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+    await completion;
+    // autoSessionTitle 是 fire-and-forget，等它落完
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sdk.session.summary?.title).toBe("首条提问前二十字");
+    expect(sdk.session.summary?.titleKind).toBe("custom");
+    expect(broadcasts).toContainEqual({
+      event: Events.SessionTitleChanged,
+      data: { sessionId: "session-1", title: "首条提问前二十字" },
+      webviewId: "view-1",
+    });
+  });
+
+  it("does not rename a session whose title is custom", async () => {
+    const titleInputs: string[] = [];
+    const { runtime, sdk } = createRuntime(DEFAULT_LEGACY_APPROVAL, async (text) => {
+      titleInputs.push(text);
+      return undefined;
+    });
+    const summary = sdk.session.summary;
+    if (summary !== undefined) {
+      sdk.session.summary = { ...summary, title: "已有标题", titleKind: "custom" };
+    }
+
+    const completion = runtime.prompt("新一轮提问");
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+    await completion;
+
+    expect(titleInputs).toEqual([]);
+  });
+
+  it("still names a session whose title only came from the engine prompt fallback", async () => {
+    const titleInputs: string[] = [];
+    const { runtime, sdk } = createRuntime(DEFAULT_LEGACY_APPROVAL, async (text) => {
+      titleInputs.push(text);
+      return undefined;
+    });
+    // 引擎在提交首条提问时会写入 200 字的 replaceable 标题（经 meta 事件回写为 generated）
+    sdk.emit({
+      type: "session.meta.updated",
+      sessionId: "session-1",
+      agentId: "main",
+      patch: { title: "引擎截取的长标题", isCustomTitle: false, lastPrompt: "引擎截取的长标题" },
+    } as Event);
+
+    const completion = runtime.prompt("帮我修复登录页的样式问题");
+    sdk.emit(turnStarted());
+    sdk.emit(turnEnded("completed"));
+    await completion;
+
+    expect(titleInputs).toEqual(["帮我修复登录页的样式问题"]);
+  });
+});
+
+describe("session title helpers", () => {
+  it("extracts the text parts from a multimodal prompt", () => {
+    expect(
+      extractPromptText([
+        { type: "text", text: "第一段" },
+        { type: "image_url", image_url: { url: "data:image/png;base64,AA" } },
+        { type: "text", text: "第二段" },
+      ]),
+    ).toBe("第一段 第二段");
+    expect(extractPromptText("纯文本")).toBe("纯文本");
+    expect(extractPromptText(undefined)).toBe("");
+  });
+
+  it("truncates the fallback title to the first 20 characters with whitespace collapsed", () => {
+    expect(fallbackSessionTitle("  帮我\n修复   登录页样式 ")).toBe("帮我 修复 登录页样式");
+    expect(fallbackSessionTitle("一二三四五六七八九十一二三四五六七八九十一二三四五")).toBe(
+      "一二三四五六七八九十一二三四五六七八九十",
+    );
+    expect(fallbackSessionTitle("   \n  ")).toBeUndefined();
   });
 });

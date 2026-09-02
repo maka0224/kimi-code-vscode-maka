@@ -26,6 +26,7 @@ runtime/**
 artifacts/**
 
 # Never package generated test/debug state
+**/.playwright-mcp/**
 **/.kimi/**
 **/.kimi-code/**
 **/cache/**

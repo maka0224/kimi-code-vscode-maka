@@ -12,11 +12,11 @@ export function ApprovalDialog() {
 
   const req = pending[0];
 
-  // Auto-expand if there's a diff block (code change)
+  // Auto-expand if there's a diff block (code change) or a plan block (plan review)
   useEffect(() => {
     if (req) {
-      const hasDiff = req.display?.some((b) => b.type === "diff") ?? false;
-      setExpanded(hasDiff);
+      const hasRichContent = req.display?.some((b) => b.type === "diff" || b.type === "plan") ?? false;
+      setExpanded(hasRichContent);
     }
   }, [req?.id]);
 

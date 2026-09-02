@@ -226,6 +226,22 @@ describe("Webview RPC boundary (validates requests before host dispatch)", () =>
     expect(workspaceState.update).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [{ sessionId: 42, title: "新标题" }],
+    [{ sessionId: "abc", title: 42 }],
+    [{ title: "新标题" }],
+  ])("rejects invalid renameKimiSession params %j", async (params) => {
+    const result = await bridge.handle(
+      { id: "rpc-1", method: Methods.RenameKimiSession, params },
+      "view-1",
+    );
+
+    expect(result).toEqual({
+      id: "rpc-1",
+      error: "Invalid bridge params for method: renameKimiSession",
+    });
+  });
+
   it("dispatches a valid request through the existing bridge surface", async () => {
     const result = await bridge.handle({ id: "rpc-1", method: Methods.ShowLogs }, "view-1");
 

@@ -8,7 +8,7 @@ import {
 } from "@moonshot-ai/kimi-code-sdk";
 
 import type { RuntimeBroadcast, SessionRuntimeOptions } from "./session-runtime";
-import {
+import { fallbackSessionTitle } from "./session-runtime";import {
   corePermissionForLegacyApproval,
   legacyApprovalMetadata,
   readLegacyApprovalFlags,
@@ -38,6 +38,11 @@ export interface KimiRuntimeOptions {
    * applies on the next window reload, when the runtime is rebuilt.
    */
   readonly useAgentCoreV1?: boolean;
+  /**
+   * 是否用大模型自动生成会话名称（maka.autoGenerateSessionTitle）。运行时逐次读取，
+   * 设置切换立即生效；未提供时视为关闭（首条提问前 20 字回退命名）。
+   */
+  readonly autoGenerateSessionTitle?: () => boolean;
 }
 
 export interface OpenSessionOptions {
@@ -57,6 +62,8 @@ export class KimiRuntime {
   private readonly captureBaseline: KimiRuntimeOptions["captureBaseline"];
   private readonly log: KimiRuntimeOptions["log"];
   private readonly notify: KimiRuntimeOptions["notify"];
+  private readonly useAgentCoreV1: boolean;
+  private readonly autoGenerateSessionTitle: () => boolean;
   private readonly sessions = new Map<string, SessionRuntime>();
   private readonly sessionByView = new Map<string, string>();
   private readonly viewChains = new Map<string, Promise<void>>();
@@ -67,6 +74,8 @@ export class KimiRuntime {
     this.captureBaseline = options.captureBaseline;
     this.log = options.log;
     this.notify = options.notify;
+    this.useAgentCoreV1 = options.useAgentCoreV1 === true;
+    this.autoGenerateSessionTitle = options.autoGenerateSessionTitle ?? (() => false);
     const createHarness = options.useAgentCoreV1 ? createKimiHarness : createKimiHarnessV2;
     this.harness =
       options.harness ??
@@ -278,6 +287,22 @@ export class KimiRuntime {
       captureBaseline: this.captureBaseline,
       log: this.log,
       notify: this.notify,
+      // 会话命名：勾选 maka.autoGenerateSessionTitle 时首轮完成后调用大模型生成标题
+      // （仅 v2 引擎支持，v1 的 generateSessionTitle 直接抛错），引擎会自发 meta 事件回写；
+      // 未勾选时回退为首条提问前 20 字直接命名（renameSession 不发事件，返回标题由调用方回写）。
+      // 设置运行时读取，切换无需重载窗口。
+      autoSessionTitle: async (firstPromptText) => {
+        const canGenerate =
+          !this.useAgentCoreV1 && typeof this.harness.generateSessionTitle === "function";
+        if (this.autoGenerateSessionTitle() && canGenerate) {
+          await this.harness.generateSessionTitle({ id: session.id, source: "first_turn" });
+          return undefined;
+        }
+        const fallbackTitle = fallbackSessionTitle(firstPromptText);
+        if (fallbackTitle === undefined) return undefined;
+        await this.harness.renameSession({ id: session.id, title: fallbackTitle });
+        return fallbackTitle;
+      },
     });
     this.sessions.set(session.id, runtime);
     return runtime;

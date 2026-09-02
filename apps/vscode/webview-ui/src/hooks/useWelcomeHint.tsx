@@ -34,6 +34,7 @@ function ShortcutGuide() {
           <ShortcutRow kbd="↑">浏览输入历史</ShortcutRow>
           <ShortcutRow kbd="@">添加/搜索要引用的文件</ShortcutRow>
           <ShortcutRow kbd="Alt+K">直接添加编辑器中选中的代码</ShortcutRow>
+          <ShortcutRow kbd="Shift+拖拽">把文件/文件夹拖入输入框插入引用</ShortcutRow>
         </div>
       </div>
       <div>
@@ -66,6 +67,10 @@ const HINTS_POOL: WelcomeHint[] = [
   {
     title: "引用指定代码",
     description: "输入 @ 选择文件，或选中代码后按 Alt+K",
+  },
+  {
+    title: "拖拽也能引用",
+    description: "按住 Shift 把文件/文件夹拖入输入框，即可插入引用",
   },
   {
     title: "看看我能做什么",

@@ -3,7 +3,7 @@
   "publisher": "maka",
   "displayName": "Kimi Code Maka",
   "description": "Kimi Code Maka - an independent fork of the Kimi Code VS Code extension",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -98,6 +98,11 @@
           "type": "boolean",
           "default": false,
           "description": "临时回滚开关：使用旧版 v1 引擎运行 Kimi，而非当前引擎。该设置将在未来版本移除，需重载窗口后生效。"
+        },
+        "maka.autoGenerateSessionTitle": {
+          "type": "boolean",
+          "default": false,
+          "description": "首轮对话完成后调用大模型自动生成会话名称"
         },
         "maka.notifications.enabled": {
           "type": "boolean",

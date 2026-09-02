@@ -150,7 +150,11 @@ export class KimiWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private getHtml(webviewId: string, webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "webview.js"));
+    // 附带 mtime 作为 cache-buster：重新赋值 html 时 URL 不变的话，
+    // webview 内核可能仍使用缓存的旧 bundle
+    const scriptUri = webview
+      .asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "webview.js"))
+      .with({ query: `v=${Date.now()}` });
     const baseUri = webview.asWebviewUri(this.extensionUri).toString();
     const nonce = getNonce();
 

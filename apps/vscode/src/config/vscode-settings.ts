@@ -63,6 +63,11 @@ export const VSCodeSettings = {
     return resolveUseAgentCoreV1(getConfig().get<boolean>("useAgentCoreV1", false), process.env);
   },
 
+  /** 开启后首轮完成调用大模型生成会话名称；关闭时回退为首条提问前 20 字（运行时读取，即时生效）。 */
+  get autoGenerateSessionTitle(): boolean {
+    return getConfig().get<boolean>("autoGenerateSessionTitle", false);
+  },
+
   /** 通知设置（maka.notifications.* 扁平配置，设置界面自动归入 Notifications 分组）。 */
   get notificationsEnabled(): boolean {
     return getConfig().get<boolean>("notifications.enabled", true);

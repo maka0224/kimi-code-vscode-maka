@@ -22,60 +22,15 @@ function contextBarClasses(percent: number): string {
   return "bg-primary";
 }
 
-export function TokenInfo() {
-  const { lastStatus, tokenUsage, activeTokenUsage } = useChatStore();
-
-  const contextPercent = lastStatus?.context_usage ? Math.round(lastStatus.context_usage * 1000) / 10 : 0;
-  const contextTokens = lastStatus?.context_tokens;
-  const maxContextTokens = lastStatus?.max_context_tokens;
-
-  const cumulativeInput =
-    tokenUsage.input_other + tokenUsage.input_cache_read + tokenUsage.input_cache_creation;
-  const activeInput =
-    activeTokenUsage.input_other + activeTokenUsage.input_cache_read + activeTokenUsage.input_cache_creation;
-  const totalCacheRead = tokenUsage.input_cache_read + activeTokenUsage.input_cache_read;
-  const totalCacheCreation = tokenUsage.input_cache_creation + activeTokenUsage.input_cache_creation;
-
-  return (
-    <div className="space-y-2">
-      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Token 用量</div>
-      <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-[10px]">上下文</span>
-          <span className={cn(contextClasses(contextPercent))}>{contextPercent}%</span>
-          {contextTokens !== undefined && maxContextTokens !== undefined && (
-            <span className="text-[10px] text-muted-foreground">
-              {formatTokens(contextTokens)} / {formatTokens(maxContextTokens)}
-            </span>
-          )}
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-[10px]">输入</span>
-          <span>{cumulativeInput.toLocaleString()}</span>
-          <span className="text-[10px] text-muted-foreground">本轮 {activeInput.toLocaleString()}</span>
-          <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-1 mt-0.5 space-y-0.5">
-            <div>缓存读取 {totalCacheRead.toLocaleString()}</div>
-            <div>缓存创建 {totalCacheCreation.toLocaleString()}</div>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-[10px]">输出</span>
-          <span>{tokenUsage.output.toLocaleString()}</span>
-          <span className="text-[10px] text-muted-foreground">本轮 {activeTokenUsage.output.toLocaleString()}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ChatStatus() {
-  const { lastStatus, tokenUsage, activeTokenUsage } = useChatStore();
+  const { lastStatus, tokenUsage, activeTokenUsage, sessionId, messages } = useChatStore();
 
-  if (!lastStatus) {
+  // 有活动会话就显示（StatusUpdate 到达前数据为空，显示 0%）；完全无会话时隐藏
+  if (!lastStatus && !sessionId) {
     return null;
   }
 
-  const { context_usage, context_tokens, max_context_tokens, retrying } = lastStatus;
+  const { context_usage, context_tokens, max_context_tokens, retrying } = lastStatus ?? {};
 
   const cacheRead = tokenUsage.input_cache_read + activeTokenUsage.input_cache_read;
   const inputTotal =
@@ -92,7 +47,7 @@ export function ChatStatus() {
   const cacheHitRate = inputTotal > 0 ? Math.round((cacheRead / inputTotal) * 1000) / 10 : 0;
 
   return (
-    <div className="flex items-center gap-3 text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 select-none h-6 box-border mr-2 @max-[240px]:hidden">
+    <div className="flex items-center gap-3 text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 select-none h-6 box-border @max-[240px]:hidden">
       {retrying && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -126,7 +81,7 @@ export function ChatStatus() {
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-56 p-3">
+        <PopoverContent align="start" className="w-64 p-3">
           <div className="space-y-1.5 text-xs">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider">上下文窗口用量</div>
             {context_tokens !== undefined && max_context_tokens !== undefined && (
@@ -153,6 +108,18 @@ export function ChatStatus() {
               <span className="text-muted-foreground">缓存命中率</span>
               <span>{cacheHitRate}%</span>
             </div>
+            {sessionId && (
+              <div className="border-t border-border/50 pt-1.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">消息数</span>
+                  <span>{messages.length}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">会话 ID</span>
+                  <span className="font-mono text-[10px] text-foreground break-all select-all text-right">{sessionId}</span>
+                </div>
+              </div>
+            )}
           </div>
         </PopoverContent>
       </Popover>

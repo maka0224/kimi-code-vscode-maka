@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { DisplayBlock, DiffBlock, TodoBlock, BriefBlock, ShellBlock } from "shared/legacy-sdk";
+import type { DisplayBlock, DiffBlock, TodoBlock, BriefBlock, ShellBlock, PlanBlock } from "shared/legacy-sdk";
 import { cn } from "@/lib/utils";
+import { Markdown } from "./Markdown";
 import * as Diff from "diff";
 
 function useIsDark(): boolean {
@@ -188,6 +189,18 @@ export function ShellBlockView({ block, maxHeight = "max-h-40" }: ShellBlockProp
   );
 }
 
+interface PlanBlockProps {
+  block: PlanBlock;
+}
+
+export function PlanBlockView({ block }: PlanBlockProps) {
+  return (
+    <div className="text-xs border border-border rounded-md px-3 py-2">
+      <Markdown content={block.text} className="text-xs leading-relaxed" enableEnrichment />
+    </div>
+  );
+}
+
 interface DisplayBlockViewProps {
   block: DisplayBlock;
   maxHeight?: string;
@@ -201,6 +214,8 @@ export function DisplayBlockView({ block, maxHeight }: DisplayBlockViewProps) {
       return <TodoBlockView block={block as TodoBlock} />;
     case "brief":
       return <BriefBlockView block={block as BriefBlock} />;
+    case "plan":
+      return <PlanBlockView block={block as PlanBlock} />;
     default:
       return null;
   }

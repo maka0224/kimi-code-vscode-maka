@@ -28,6 +28,11 @@ interface ForkSessionParams {
   turnIndex: number;
 }
 
+interface RenameSessionParams {
+  sessionId: string;
+  title: string;
+}
+
 export const sessionHandlers: Record<string, Handler<any, any>> = {
   [Methods.GetKimiSessions]: async (_, ctx): Promise<SessionInfo[]> => {
     if (!ctx.workDir) return [];
@@ -249,6 +254,19 @@ export const sessionHandlers: Record<string, Handler<any, any>> = {
     return active === undefined
       ? forkSettledSession()
       : active.runExclusiveAfterCancelling(forkSettledSession);
+  },
+
+  [Methods.RenameKimiSession]: async (params: RenameSessionParams, ctx): Promise<{ ok: boolean }> => {
+    if (!isSessionId(params.sessionId) || typeof params.title !== "string") return { ok: false };
+    const title = params.title.trim();
+    if (!title) return { ok: false };
+    try {
+      await ctx.harness.renameSession({ id: params.sessionId, title });
+    } catch (error) {
+      ctx.logError(`Unable to rename session ${params.sessionId}`, error);
+      return { ok: false };
+    }
+    return { ok: true };
   },
 };
 

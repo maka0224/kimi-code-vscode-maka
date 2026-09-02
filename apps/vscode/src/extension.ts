@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+
 import * as vscode from "vscode";
 
 import { Events } from "../shared/bridge";
@@ -17,6 +19,11 @@ const LEGACY_REAUTH_NOTICE_KEY = "maka.legacyMigration.reauthNotice.v1";
 const LEGACY_WARNING_NOTICE_KEY = "maka.legacyMigration.warningNotice.v1";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  // 引擎默认关闭 auto_session_title（env 默认 false）；flag 只控制 generateSessionTitle
+  // 是否可用，自动触发的责任在客户端（首轮完成后调用），所以这里无条件打开。
+  // 必须在引擎/harness 初始化前设置。
+  process.env["KIMI_CODE_EXPERIMENTAL_AUTO_SESSION_TITLE"] = "1";
+
   outputChannel = vscode.window.createOutputChannel("Kimi Code Maka");
   const remoteInfo = vscode.env.remoteName ? ` (remote: ${vscode.env.remoteName})` : "";
   log(`Kimi Code Maka ${VSCodeSettings.getExtensionConfig().version} activating${remoteInfo}`);
@@ -135,6 +142,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(vscode.commands.registerCommand(id, handler));
   }
 
+  // 开发模式下轮询 vite watch 产物，webview.js 重建后自动重载所有 webview，
+  // 免去手动 Developer: Reload Webviews（webview.html 只在创建时赋值，不会自动刷新）
+  if (context.extensionMode === vscode.ExtensionMode.Development) {
+    context.subscriptions.push(watchWebviewBundle(context.extensionUri, () => provider?.reloadAllWebviews()));
+  }
+
   void offerLegacyMigration(
     migrationManager,
     () => runMigration(false),
@@ -154,6 +167,36 @@ export async function deactivate(): Promise<void> {
 
 function log(message: string): void {
   outputChannel?.appendLine(`[${new Date().toISOString()}] ${message}`);
+}
+
+/** 轮询 dist/webview.js 的 mtime，变化时回调；返回可释放对象。用轮询而非 fs.watch，与 scripts/watch-extension.mjs 保持一致（Windows 上 fs.watch 不可靠） */
+function watchWebviewBundle(extensionUri: vscode.Uri, onRebuild: () => void): vscode.Disposable {
+  const bundlePath = vscode.Uri.joinPath(extensionUri, "dist", "webview.js").fsPath;
+  let lastMtimeMs = 0;
+  let reloadTimer: NodeJS.Timeout | undefined;
+  const interval = setInterval(async () => {
+    try {
+      const { mtimeMs } = await stat(bundlePath);
+      if (lastMtimeMs === 0) {
+        lastMtimeMs = mtimeMs;
+        return;
+      }
+      if (mtimeMs === lastMtimeMs) return;
+      lastMtimeMs = mtimeMs;
+      // vite 一次 rebuild 会多次落盘，稍作防抖
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        log("Webview bundle rebuilt; reloading webviews");
+        onRebuild();
+      }, 300);
+    } catch {
+      // 产物暂时不存在（clean 后/首次构建前），忽略
+    }
+  }, 1_000);
+  return new vscode.Disposable(() => {
+    clearInterval(interval);
+    clearTimeout(reloadTimer);
+  });
 }
 
 function logError(message: string, error: unknown): void {

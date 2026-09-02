@@ -48,6 +48,7 @@ export const Methods = {
   LoadKimiSessionHistory: "loadKimiSessionHistory",
   DeleteKimiSession: "deleteKimiSession",
   ForkKimiSession: "forkKimiSession",
+  RenameKimiSession: "renameKimiSession",
   GetProjectFiles: "getProjectFiles",
   PickMedia: "pickMedia",
   OpenFile: "openFile",
@@ -140,6 +141,7 @@ export const Events = {
   RollbackInput: "rollbackInput",
   LoginUrl: "loginUrl",
   WindowFocused: "windowFocused",
+  SessionTitleChanged: "sessionTitleChanged",
 } as const;
 
 const rpcMethods = new Set<string>(Object.values(Methods));
@@ -241,6 +243,10 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
       return hasNonEmptyString(params, "kimiSessionId");
     case Methods.DeleteKimiSession:
       return hasNonEmptyString(params, "sessionId");
+    case Methods.RenameKimiSession:
+      return isPlainObject(params)
+        && isNonEmptyString(params["sessionId"])
+        && typeof params["title"] === "string";
     case Methods.ForkKimiSession:
       return isPlainObject(params)
         && isNonEmptyString(params["sessionId"])

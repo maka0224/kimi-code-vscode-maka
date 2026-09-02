@@ -39,6 +39,8 @@ export interface SessionRuntimeOptions {
   readonly log: (message: string, error?: unknown) => void;
   /** 会话状态系统通知；未提供时不发通知。 */
   readonly notify?: (kind: SessionNotificationKind, message: string) => void;
+  /** 首轮完成后命名会话（注入方决定走大模型生成还是首条提问截断回退，参数为首条提问文本）；返回实际写入的标题（引擎自发 meta 事件回写时返回 undefined）；未提供时不命名。 */
+  readonly autoSessionTitle?: (firstPromptText: string) => Promise<string | undefined>;
 }
 
 interface ActivePrompt {
@@ -94,6 +96,7 @@ export class SessionRuntime {
   private suppressedError: SuppressedError | undefined;
   private legacyApproval: LegacyApprovalFlags;
   private readonly notify: SessionRuntimeOptions["notify"];
+  private readonly autoSessionTitle: SessionRuntimeOptions["autoSessionTitle"];
   private closed = false;
 
   constructor(options: SessionRuntimeOptions) {
@@ -103,6 +106,7 @@ export class SessionRuntime {
     this.log = options.log;
     this.legacyApproval = options.legacyApproval;
     this.notify = options.notify;
+    this.autoSessionTitle = options.autoSessionTitle;
     this.reverseRpc = new ReverseRpcController((event) => this.emitStreamEvent(event));
 
     // Forward every approval request to the user. The engine permission mode
@@ -477,6 +481,12 @@ export class SessionRuntime {
       this.activePrompt.started = true;
     }
 
+    // summary 是创建/恢复时的一次性快照，引擎侧 title/lastPrompt 更新后
+    // 需要靠 meta 事件回写，否则通知前缀与会话列表读到的一直是旧值
+    if (event.type === "session.meta.updated" && event.patch !== undefined) {
+      this.patchSessionSummary(event.patch as { readonly title?: string; readonly isCustomTitle?: boolean; readonly lastPrompt?: string });
+    }
+
     if (event.type === "tool.call.started") {
       this.captureFileBaseline(event);
     }
@@ -544,6 +554,7 @@ export class SessionRuntime {
 
     if (terminal.reason === "completed") {
       this.notifyWithTitle("complete", "回复已生成完成");
+      this.maybeGenerateTitle();
       this.emitStreamEvent({
         type: "stream_complete",
         result: { status: "finished" },
@@ -648,6 +659,46 @@ export class SessionRuntime {
     this.notify?.(kind, source ? `【${source}】${message}` : message);
   }
 
+  /** summary 是快照：用 meta 事件里的 patch 生成新对象回写，保持 readonly 语义；标题变化同步推给订阅的 Webview（顶栏标题不轮询） */
+  private patchSessionSummary(patch: {
+    readonly title?: string;
+    readonly isCustomTitle?: boolean;
+    readonly lastPrompt?: string;
+  }): void {
+    const summary = this.session.summary;
+    if (summary === undefined) return;
+    this.session.summary = {
+      ...summary,
+      ...(patch.title === undefined
+        ? {}
+        : { title: patch.title, titleKind: patch.isCustomTitle ? ("custom" as const) : ("generated" as const) }),
+      ...(patch.lastPrompt === undefined ? {} : { lastPrompt: patch.lastPrompt }),
+    };
+    if (patch.title !== undefined) {
+      for (const webviewId of this.webviewIds) {
+        this.broadcast(Events.SessionTitleChanged, { sessionId: this.session.id, title: patch.title }, webviewId);
+      }
+    }
+  }
+
+  /** 首轮完成后命名会话：用户手动命名（custom）不覆盖，引擎的 replaceable/generated 标题可被替换；命名失败不阻塞回合收尾 */
+  private maybeGenerateTitle(): void {
+    const autoSessionTitle = this.autoSessionTitle;
+    if (autoSessionTitle === undefined) return;
+    if (this.session.summary?.titleKind === "custom") return;
+    const firstPromptText = extractPromptText(this.activePrompt?.input);
+    void autoSessionTitle(firstPromptText)
+      .then((appliedTitle) => {
+        // renameSession 不触发 session.meta.updated 事件，本地回写（广播在 patch 内完成）
+        if (appliedTitle !== undefined) {
+          this.patchSessionSummary({ title: appliedTitle, isCustomTitle: true });
+        }
+      })
+      .catch((error: unknown) => {
+        this.log("Session title generation failed", error);
+      });
+  }
+
   private ensureOpen(): void {
     if (this.closed) throw new Error("Session is closed.");
   }
@@ -690,4 +741,21 @@ export function toSdkPromptInput(input: string | LegacyContentPart[]): string | 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** 提取提问中的文本部分（纯文本直接返回，多模态输入拼接 text 片段）。 */
+export function extractPromptText(input: string | LegacyContentPart[] | undefined): string {
+  if (input === undefined) return "";
+  if (typeof input === "string") return input;
+  return input
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+}
+
+/** 未开启大模型自动命名时的回退会话名：首条提问压缩空白后取前 20 个字；无文本返回 undefined。 */
+export function fallbackSessionTitle(promptText: string): string | undefined {
+  const normalized = promptText.replace(/\s+/g, " ").trim();
+  if (normalized === "") return undefined;
+  return [...normalized].slice(0, 20).join("");
 }
