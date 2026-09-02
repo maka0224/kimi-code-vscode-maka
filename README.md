@@ -17,6 +17,7 @@
 - **切换窗口恢复聚焦**：Alt+Tab 切回自动聚焦输入框。
 - **界面调整**：全新 Logo、蓝紫主题、用量/额度并入输入框工具行等。
 
+
 ## 更新说明
 
 - **当前版本：`0.2.2`**，基于官方扩展 `0.7.3`（[MoonshotAI/kimi-code](https://github.com/MoonshotAI/kimi-code)）。
