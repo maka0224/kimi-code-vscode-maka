@@ -14,6 +14,8 @@
 apps/vscode/          # VS Code 扩展本体（包名 kimi-code-maka）
 packages/             # 被扩展与 CLI 共享的底层库（@moonshot-ai/* 作用域）
 build/                # 共享构建工具：raw-text 插件/loader（把 prompt 文本等资源作为字符串内联打包）
+memory-bank/          # 跨会话记忆库（Cline Memory Bank 规范：projectbrief/productContext/activeContext/systemPatterns/techContext/progress）
+.clinerules/          # Cline 规则文件（memory-bank.md 规定记忆库的读写时机）
 ```
 
 ### apps/vscode（扩展宿主）
