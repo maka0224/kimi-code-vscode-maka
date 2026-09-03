@@ -136,6 +136,8 @@ export function SessionList({ onClose }: SessionListProps) {
         const result = await bridge.setWorkDir(newWorkDir);
         if (result.ok) {
           setCurrentWorkDir(newWorkDir);
+          // 工作目录的信任状态独立判定，切换后重新检查
+          void queryClient.invalidateQueries({ queryKey: ["workspaceTrust"] });
         }
       }
       const events = await bridge.loadSessionHistory(session.id);

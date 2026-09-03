@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type * as vscode from "vscode";
 
-import { Methods } from "../shared/bridge";
+import { Events, Methods } from "../shared/bridge";
 import { BridgeHandler } from "../src/bridge-handler";
 
 const host = vi.hoisted(() => {
@@ -30,6 +30,8 @@ const host = vi.hoisted(() => {
     resumeSession: vi.fn(),
     forkSession: vi.fn(),
     deleteSession: vi.fn(async () => undefined),
+    getWorkspaceTrustInfo: vi.fn(async () => ({ trusted: true, gatedMcpServers: [] })),
+    trustWorkspace: vi.fn(async () => undefined),
   };
   const showWarningMessage = vi.fn(async () => undefined as string | undefined);
 
@@ -86,6 +88,7 @@ vi.mock("@moonshot-ai/kimi-code-sdk", async (importOriginal) => {
 
 let bridge: BridgeHandler;
 let root: string;
+let broadcast: Mock;
 let showLogs: Mock<() => void>;
 let writeLog: Mock<(message: string) => void>;
 let workspaceState: { get: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
@@ -95,16 +98,20 @@ beforeEach(async () => {
   host.workspaceFolders.splice(0, host.workspaceFolders.length, { uri: new host.Uri(root) });
   showLogs = vi.fn();
   writeLog = vi.fn();
+  broadcast = vi.fn();
   host.harness.resumeSession.mockReset();
   host.harness.getConfig.mockReset();
   host.harness.getConfig.mockResolvedValue({ models: {} });
+  host.harness.getWorkspaceTrustInfo.mockReset();
+  host.harness.getWorkspaceTrustInfo.mockResolvedValue({ trusted: true, gatedMcpServers: [] });
+  host.harness.trustWorkspace.mockReset();
   host.createKimiHarness.mockImplementation(() => host.harness);
   host.createKimiHarnessV2.mockImplementation(() => host.harness);
   host.showWarningMessage.mockReset();
   host.showWarningMessage.mockResolvedValue(undefined);
   workspaceState = { get: vi.fn((_key, fallback) => fallback), update: vi.fn() };
   bridge = new BridgeHandler(
-    vi.fn(),
+    broadcast,
     workspaceState as unknown as vscode.Memento,
     join(root, "global-storage"),
     vi.fn(),
@@ -550,6 +557,50 @@ describe("Registered working directories", () => {
     expect(result).toEqual({ id: "rpc-1", result: [inside, root].toSorted() });
     expect(JSON.stringify(result)).not.toContain("/private/outside");
   });
+});
+
+describe("Workspace trust", () => {
+  it("returns the SDK trust info for the current working directory", async () => {
+    host.harness.getWorkspaceTrustInfo.mockResolvedValue({
+      trusted: false,
+      gatedMcpServers: [{ name: "fs", transport: "stdio", command: "mcp-fs" }],
+    } as never);
+
+    const result = await bridge.handle({ id: "rpc-1", method: Methods.GetWorkspaceTrust }, "view-1");
+
+    expect(result).toEqual({
+      id: "rpc-1",
+      result: {
+        trusted: false,
+        gatedMcpServers: [{ name: "fs", transport: "stdio", command: "mcp-fs" }],
+      },
+    });
+    expect(host.harness.getWorkspaceTrustInfo).toHaveBeenCalledWith(root);
+  });
+
+  it("trusts the workspace and broadcasts the flipped state", async () => {
+    host.harness.getWorkspaceTrustInfo.mockResolvedValue({ trusted: true, gatedMcpServers: [] } as never);
+
+    const result = await bridge.handle({ id: "rpc-1", method: Methods.TrustWorkspace }, "view-1");
+
+    expect(result).toEqual({ id: "rpc-1", result: { trusted: true, gatedMcpServers: [] } });
+    expect(host.harness.trustWorkspace).toHaveBeenCalledWith(root);
+    expect(broadcast).toHaveBeenCalledWith(Events.WorkspaceTrustChanged, {
+      trusted: true,
+      gatedMcpServers: [],
+    });
+  });
+
+  it.each([Methods.GetWorkspaceTrust, Methods.TrustWorkspace])(
+    "rejects %s when params are supplied",
+    async (method) => {
+      const result = await bridge.handle({ id: "rpc-1", method, params: {} }, "view-1");
+
+      expect(result).toEqual({ id: "rpc-1", error: `Invalid bridge params for method: ${method}` });
+      expect(host.harness.getWorkspaceTrustInfo).not.toHaveBeenCalled();
+      expect(host.harness.trustWorkspace).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("Webview config saves (thinking effort persistence parity with the TUI)", () => {

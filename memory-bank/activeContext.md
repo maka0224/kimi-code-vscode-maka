@@ -4,26 +4,28 @@
 
 ## 当前焦点
 
-刚完成 **上游 0.7.4/0.7.5 同步**（提交 `14b0c30bd`，分支 `sync/upstream-0.7.5`，版本仍为 0.3.0——按用户要求同步内容并入 0.3.0 发布）。vsix 已打包：`apps/vscode/artifacts/vsix/kimi-code-maka-0.3.0.vsix`。
+刚完成 **0.3.1 批次**（待提交）：Alt+Tab 焦点恢复缺陷修复 + 陌生目录信任确认特性。版本号已升至 `0.3.1`（`apps/vscode/package.json`），文档（README×2、CHANGELOG、AGENTS.md）已同步。
 
-## 最近变更（0.3.0 批次）
+## 最近变更（0.3.1 批次）
 
-- 上游 #3453：`@` 文件建议改由引擎实时提供，匹配字符高亮、支持文件夹引用、移除 Browse folders 模式、修复 @ 与 / 列表滚动抖动
-- 上游 #3440：webview 数据层 ahooks → TanStack Query，新增 test/webview（jsdom）测试工程
-- 上游引擎：Bash cwd 允许工作区根之外、压缩后重提醒未注入的 AGENTS.md、实验性回合级文件历史、kimi-cli 迁移完善且不再重复弹提示
-- 0.3.0 原有特性：提示词优化按钮栏 + 气泡（用户后来简化了 README 中的文案描述）
+- 缺陷：Alt+Tab 切走再切回输入框不聚焦——根因是 webview iframe 的 blur 事件不可靠，焦点标记从未记录；新增宿主广播 `WindowBlurred` 事件（`shared/bridge.ts`、`src/extension.ts` 的 `onDidChangeWindowState`），webview 收到广播时记录 `document.activeElement === textarea`（`InputArea.tsx`），仅切走前聚焦才恢复
+- 特性：陌生目录信任确认（对齐 kimi-cli）——引擎（agent-core-v2 `IWorkspaceTrust`）与 SDK（`getWorkspaceTrustInfo`/`trustWorkspace`）早已齐备，本次只加了扩展消费层：
+  - 桥接：`getWorkspaceTrust`/`trustWorkspace` 方法 + `WorkspaceTrustChanged` 事件（`shared/bridge.ts`、`src/handlers/workspace.handler.ts`）
+  - UI：新组件 `WorkspaceTrustBanner.tsx`（TanStack Query `["workspaceTrust"]`），未信任时顶部琥珀横幅，列出被门控的项目 MCP 服务器；「信任此目录」实时生效无需重启；「忽略」仅本次关闭，重开窗口再提示
+  - 联动：`App.tsx` 监听事件失效 workspaceTrust/mcpServers 查询；`WorkDirModal`/`SessionList` 切换工作目录后重查
+  - 信任标记在 `~/.kimi-code/workspace-trust/`（与 kimi-cli 共用），v1 引擎恒报 trusted 不受影响
 
 ## 下一步
 
-1. 扩展宿主冒烟：`@` 提及、拖拽引用、提示词优化、会话列表（InputArea.tsx 合并复杂度最高）
-2. 把 `sync/upstream-0.7.5` 合并回 main（或直接以该分支发布）
-3. 推送并发布市场（`publish:vsix` / `publish:ovsx`）
+1. 提交 0.3.1 批次（用户已要求提交）
+2. 实际在未信任目录中手动验证横幅交互
+3. 打包发布 0.3.1 vsix（`package:universal` / `publish:vsix` / `publish:ovsx`）
 
 ## 活跃决策与考虑
 
-- **版本号**：同步内容按用户明确要求并入 0.3.0（0.3.0 尚未推送/发布），不设 0.4.0
-- **transcript 包恢复**：上游 migration-legacy 的测试依赖 `@moonshot-ai/transcript`，fork 此前裁剪了它，已按上游 0.7.5 原文恢复
-- **fileHistory 测试**：2 个用例在 Windows 下因路径分隔符失败，属上游固有问题，未改动上游测试
+- **信任提示形式**：用户拍板用 webview 横幅而非 VS Code 模态框；不阻止使用但需说明受限项；所有陌生目录都提示（不限于存在被门控内容的目录）
+- **「忽略」语义**：用户明确=仅关闭本次、下次仍提示（与最初的 X 按钮语义相同，改为文字按钮并移除 X）
+- **信任取消**：暂无界面入口，需手动删除 `~/.kimi-code/workspace-trust/` 下对应文件
 
 ## 项目洞察
 

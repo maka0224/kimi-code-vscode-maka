@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { Methods } from "../../shared/bridge";
+import { Events, Methods } from "../../shared/bridge";
 import type { Handler } from "./types";
-import type { WorkspaceStatus } from "shared/types";
+import type { WorkspaceStatus, WorkspaceTrustState } from "shared/types";
 
 const INPUT_HISTORY_KEY = "maka.inputHistory";
 const MAX_HISTORY_SIZE = 100;
@@ -12,6 +12,18 @@ const checkWorkspace: Handler<void, WorkspaceStatus> = async (_, ctx) => {
     path: ctx.workDir ?? undefined,
     workspaceRoot: ctx.workspaceRoot ?? undefined,
   };
+};
+
+// 目录信任：未信任目录的项目级 MCP 配置被引擎门控，横幅提示用户确认后写入信任标记
+const getWorkspaceTrust: Handler<void, WorkspaceTrustState> = async (_, ctx) => {
+  return ctx.harness.getWorkspaceTrustInfo(ctx.requireWorkDir());
+};
+
+const trustWorkspace: Handler<void, WorkspaceTrustState> = async (_, ctx) => {
+  await ctx.harness.trustWorkspace(ctx.requireWorkDir());
+  const state = await ctx.harness.getWorkspaceTrustInfo(ctx.requireWorkDir());
+  ctx.broadcast(Events.WorkspaceTrustChanged, state);
+  return state;
 };
 
 const openFolder: Handler<void, { ok: boolean }> = async () => {
@@ -38,6 +50,8 @@ const addInputHistory: Handler<{ text: string }, { ok: boolean }> = async ({ tex
 
 export const workspaceHandlers: Record<string, Handler<any, any>> = {
   [Methods.CheckWorkspace]: checkWorkspace,
+  [Methods.GetWorkspaceTrust]: getWorkspaceTrust,
+  [Methods.TrustWorkspace]: trustWorkspace,
   [Methods.OpenFolder]: openFolder,
   [Methods.GetInputHistory]: getInputHistory,
   [Methods.AddInputHistory]: addInputHistory,

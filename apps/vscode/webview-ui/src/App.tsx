@@ -6,6 +6,7 @@ import { ChatArea } from "./components/ChatArea";
 import { InputArea } from "./components/inputarea/InputArea";
 import { MCPServersModal } from "./components/MCPServersModal";
 import { WorkDirModal } from "./components/WorkDirModal";
+import { WorkspaceTrustBanner } from "./components/WorkspaceTrustBanner";
 import { ConfigErrorScreen } from "./components/ConfigErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { Toaster, toast } from "./components/ui/sonner";
@@ -41,6 +42,10 @@ function MainContent({ onAuthAction }: { onAuthAction: () => void }) {
   useEffect(() => {
     const unsubs = [
       bridge.on(Events.MCPServersChanged, () => void queryClient.invalidateQueries({ queryKey: ["mcpServers"] })),
+      bridge.on(Events.WorkspaceTrustChanged, () => {
+        void queryClient.invalidateQueries({ queryKey: ["workspaceTrust"] });
+        void queryClient.invalidateQueries({ queryKey: ["mcpServers"] });
+      }),
       bridge.on(Events.ExtensionConfigChanged, ({ config }: { config: ExtensionConfig }) => setExtensionConfig(config)),
       bridge.on(Events.FocusInput, () => document.querySelector<HTMLTextAreaElement>("textarea")?.focus()),
       bridge.on(Events.NewConversation, () => {
@@ -68,6 +73,7 @@ function MainContent({ onAuthAction }: { onAuthAction: () => void }) {
 
   return (
     <>
+      <WorkspaceTrustBanner />
       <div className="flex-1 min-h-0 relative group/chat">
         <ChatArea />
       </div>

@@ -15,6 +15,7 @@ import type {
   SessionConfig,
   ExtensionConfig,
   WorkspaceStatus,
+  WorkspaceTrustState,
   LoginStatus,
   UIStreamEvent,
 } from "shared/types";
@@ -231,6 +232,14 @@ class Bridge {
 
   setWorkDir(workDir: string | null) {
     return this.call<{ ok: boolean; workDir: string }>(Methods.SetWorkDir, { workDir });
+  }
+
+  getWorkspaceTrust() {
+    return this.call<WorkspaceTrustState>(Methods.GetWorkspaceTrust);
+  }
+
+  trustWorkspace() {
+    return this.call<WorkspaceTrustState>(Methods.TrustWorkspace);
   }
 
   browseWorkDir() {

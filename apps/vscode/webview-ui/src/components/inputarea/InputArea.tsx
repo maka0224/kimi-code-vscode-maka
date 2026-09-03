@@ -322,9 +322,9 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     return unsub
   }, [])
 
-  // Alt+Tab 切走再切回时恢复输入框焦点：blur 时记录焦点是否在输入框，
-  // 收到宿主的窗口聚焦广播（或 iframe 自己的 focus 事件）后恢复；
-  // 窗口仍聚焦时的 blur 是用户主动点走，清除标记避免抢焦点
+  // Alt+Tab 切走再切回时恢复输入框焦点：窗口失焦时记录焦点是否在输入框，
+  // 窗口重新聚焦后恢复；窗口仍聚焦时的 blur 是用户主动点走，清除标记避免抢焦点。
+  // webview iframe 的 blur/focus 事件不可靠，以宿主的窗口状态广播为准，本地事件作兜底
   const hadFocusOnBlur = useRef(false)
   useEffect(() => {
     const ta = textareaRef.current
@@ -337,12 +337,14 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     const refocus = () => {
       if (hadFocusOnBlur.current) textareaRef.current?.focus()
     }
-    const unsub = bridge.on(Events.WindowFocused, refocus)
+    const unsubFocus = bridge.on(Events.WindowFocused, refocus)
+    const unsubBlur = bridge.on(Events.WindowBlurred, onWindowBlur)
     window.addEventListener('blur', onWindowBlur)
     window.addEventListener('focus', refocus)
     ta?.addEventListener('blur', onTextareaBlur)
     return () => {
-      unsub()
+      unsubFocus()
+      unsubBlur()
       window.removeEventListener('blur', onWindowBlur)
       window.removeEventListener('focus', refocus)
       ta?.removeEventListener('blur', onTextareaBlur)

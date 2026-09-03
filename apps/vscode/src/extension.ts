@@ -74,10 +74,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.registerWebviewViewProvider("maka.webview", provider, {
       webviewOptions: { retainContextWhenHidden: true },
     }),
-    // webview iframe 的 window focus 事件在 VS Code 恢复窗口焦点时不一定触发，
-    // 由宿主在窗口重新聚焦时广播，webview 据此恢复输入框焦点
+    // webview iframe 的 window focus/blur 事件在 VS Code 窗口焦点变化时不一定触发，
+    // 由宿主广播窗口聚焦/失焦，webview 据此记录并恢复输入框焦点
     vscode.window.onDidChangeWindowState((state) => {
-      if (state.focused) provider?.broadcast(Events.WindowFocused, {});
+      provider?.broadcast(state.focused ? Events.WindowFocused : Events.WindowBlurred, {});
     }),
   );
 

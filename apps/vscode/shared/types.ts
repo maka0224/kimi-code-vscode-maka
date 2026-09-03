@@ -44,6 +44,20 @@ export interface WorkspaceStatus {
   workspaceRoot?: string;
 }
 
+/** 目录信任状态（镜像 SDK WorkspaceTrustInfo，仅保留 webview 需要的字段） */
+export interface WorkspaceTrustServerInfo {
+  readonly name: string;
+  readonly transport: "stdio" | "http" | "sse";
+  readonly command?: string;
+  readonly url?: string;
+}
+
+export interface WorkspaceTrustState {
+  readonly trusted: boolean;
+  /** 信任后将启用的项目级 MCP 服务器（未信任时被门控） */
+  readonly gatedMcpServers: readonly WorkspaceTrustServerInfo[];
+}
+
 export type ErrorPhase = "preflight" | "runtime";
 
 export interface StreamError {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconFolder, IconFolderOpen, IconCheck, IconHome } from "@tabler/icons-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ export function WorkDirModal() {
   const { workDirModalOpen, setWorkDirModalOpen, currentWorkDir, workspaceRoot, setCurrentWorkDir } = useSettingsStore();
   const { startNewConversation } = useChatStore();
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: workDirs = [], isPending, isError } = useQuery({
     queryKey: ["registeredWorkDirs"],
@@ -24,6 +25,8 @@ export function WorkDirModal() {
       const result = await bridge.setWorkDir(dir);
       if (result.ok) {
         setCurrentWorkDir(result.workDir === workspaceRoot ? null : result.workDir);
+        // 工作目录的信任状态独立判定，切换后重新检查
+        void queryClient.invalidateQueries({ queryKey: ["workspaceTrust"] });
         await startNewConversation();
         setWorkDirModalOpen(false);
       }
@@ -38,6 +41,7 @@ export function WorkDirModal() {
       const result = await bridge.browseWorkDir();
       if (result.ok && result.workDir) {
         setCurrentWorkDir(result.workDir === workspaceRoot ? null : result.workDir);
+        void queryClient.invalidateQueries({ queryKey: ["workspaceTrust"] });
         await startNewConversation();
         setWorkDirModalOpen(false);
       }

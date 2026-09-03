@@ -11,6 +11,8 @@
 
 export const Methods = {
   CheckWorkspace: "checkWorkspace",
+  GetWorkspaceTrust: "getWorkspaceTrust",
+  TrustWorkspace: "trustWorkspace",
   GetInputHistory: "getInputHistory",
   AddInputHistory: "addInputHistory",
 
@@ -179,6 +181,8 @@ export const Events = {
   RollbackInput: "rollbackInput",
   LoginUrl: "loginUrl",
   WindowFocused: "windowFocused",
+  WindowBlurred: "windowBlurred",
+  WorkspaceTrustChanged: "workspaceTrustChanged",
   SessionTitleChanged: "sessionTitleChanged",
 } as const;
 
@@ -213,6 +217,8 @@ export function validateRpcMessage(value: unknown): RpcMessageValidation {
 function validateParams(method: RpcMethod, params: unknown): boolean {
   switch (method) {
     case Methods.CheckWorkspace:
+    case Methods.GetWorkspaceTrust:
+    case Methods.TrustWorkspace:
     case Methods.GetInputHistory:
     case Methods.GetSlashCommands:
     case Methods.CheckLoginStatus:
