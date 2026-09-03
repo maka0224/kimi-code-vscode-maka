@@ -1,5 +1,4 @@
-import { Fragment, useRef, useMemo, useState, useEffect, useCallback } from 'react'
-import { useMemoizedFn } from 'ahooks'
+import { Fragment, useRef, useMemo, useState, useEffect } from 'react'
 import { IconSend, IconPlayerStop, IconChevronDown, IconPlus, IconArrowBackUp } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
@@ -49,6 +48,12 @@ interface InputAreaProps {
 
 const SWITCH_CACHE_NOTE =
   '注意：切换模型或思考强度会使当前提示缓存失效。如需避免额外 Token 消耗，请开启新对话。'
+
+function adjustHeight(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return
+  textarea.style.height = 'auto'
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`
+}
 
 export function InputArea({ onAuthAction }: InputAreaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -164,7 +169,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
       setText(textContent)
       setTimeout(() => {
         textareaRef.current?.focus()
-        adjustHeight()
+        adjustHeight(textareaRef.current)
       }, 0)
     }
   }, [pendingInput, isStreaming])
@@ -173,14 +178,6 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
   const { handlePaste, handlePickMedia } = useMediaUpload()
 
-  const adjustHeight = useMemoizedFn(() => {
-    const ta = textareaRef.current
-    if (ta) {
-      ta.style.height = 'auto'
-      ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`
-    }
-  })
-
   const {
     handleKey: handleHistoryKey,
     add: addToHistory,
@@ -188,16 +185,21 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   } = useInputHistory({
     text,
     setText,
-    onHeightChange: () => setTimeout(adjustHeight, 0)
+    onHeightChange: () =>
+      setTimeout(() => {
+        adjustHeight(textareaRef.current)
+      }, 0)
   })
 
-  const clearInput = useMemoizedFn(() => {
+  function clearInput() {
     setText('')
     setCursorPos(0)
-    setTimeout(adjustHeight, 0)
-  })
+    setTimeout(() => {
+      adjustHeight(textareaRef.current)
+    }, 0)
+  }
 
-  const removeActiveToken = useMemoizedFn(() => {
+  function removeActiveToken() {
     if (!activeToken) return
     const newText = text.slice(0, activeToken.start) + text.slice(cursorPos)
     const newCursorPos = activeToken.start
@@ -205,11 +207,11 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     setCursorPos(newCursorPos)
     setTimeout(() => {
       textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
-      adjustHeight()
+      adjustHeight(textareaRef.current)
     }, 0)
-  })
+  }
 
-  const handleSend = useMemoizedFn(() => {
+  function handleSend() {
     if (isProcessing || (!text.trim() && draftMedia.length === 0)) {
       return
     }
@@ -218,17 +220,17 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     sendMessage(text)
     clearInput()
     setPreOptimizeText(null)
-  })
+  }
 
   // 提示词优化成功后写回输入框，并记录原稿用于工具行的回退按钮。
-  const handleOptimized = useMemoizedFn((optimized: string) => {
+  function handleOptimized(optimized: string) {
     setPreOptimizeText(text)
     setText(optimized)
     setCursorPos(optimized.length)
-  })
+  }
 
   // 选中命令（回车/Tab/点击）只补全到输入框，不直接发送
-  const completeSlashCommand = useMemoizedFn((name: string) => {
+  function completeSlashCommand(name: string) {
     if (!activeToken) return
     const insert = `/${name} `
     const newText = text.slice(0, activeToken.start) + insert + text.slice(cursorPos)
@@ -238,11 +240,11 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     setTimeout(() => {
       textareaRef.current?.focus()
       textareaRef.current?.setSelectionRange(newPos, newPos)
-      adjustHeight()
+      adjustHeight(textareaRef.current)
     }, 0)
-  })
+  }
 
-  const applyMention = useMemoizedFn((filePath: string) => {
+  function applyMention(filePath: string) {
     const { newText, newCursorPos } = computeMentionInsert({
       text,
       cursorPos,
@@ -256,9 +258,9 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     setTimeout(() => {
       textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
       textareaRef.current?.focus()
-      adjustHeight()
+      adjustHeight(textareaRef.current)
     }, 0)
-  })
+  }
 
   const {
     showSlashMenu,
@@ -271,15 +273,13 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
   const {
     showFileMenu,
-    filePickerMode,
-    folderPath,
     fileItems,
     selectedIndex: fileSelectedIndex,
     isLoading: isFileLoading,
+    isStale: isFileStale,
     showMediaOption,
     setSelectedIndex: setFileSelectedIndex,
-    setFilePickerMode,
-    setFolderPath,
+    handleSelectItem: handleSelectFileItem,
     handleFileMenuKey,
     resetFilePicker
   } = useFilePicker(
@@ -291,11 +291,11 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     removeActiveToken
   )
 
-  const closeMenus = useCallback(() => {
+  const closeMenus = () => {
     if (showSlashMenu || showFileMenu) {
       removeActiveToken()
     }
-  }, [showSlashMenu, showFileMenu, removeActiveToken])
+  }
 
   useClickOutside([textareaRef, menuRef], showSlashMenu || showFileMenu, closeMenus)
 
@@ -315,12 +315,12 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
       setTimeout(() => {
         textareaRef.current?.focus()
-        adjustHeight()
+        adjustHeight(textareaRef.current)
       }, 0)
     })
 
     return unsub
-  }, [adjustHeight])
+  }, [])
 
   // Alt+Tab 切走再切回时恢复输入框焦点：blur 时记录焦点是否在输入框，
   // 收到宿主的窗口聚焦广播（或 iframe 自己的 focus 事件）后恢复；
@@ -380,7 +380,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     }
   }, [])
 
-  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing) {
       return
     }
@@ -408,39 +408,41 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
         handleSend()
       }
     }
-  })
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value)
     setCursorPos(e.target.selectionStart)
     resetHistoryIndex()
-    setTimeout(adjustHeight, 0)
+    setTimeout(() => {
+      adjustHeight(textareaRef.current)
+    }, 0)
   }
 
   const handleSelect = () => {
     setCursorPos(textareaRef.current?.selectionStart ?? 0)
   }
 
-  const isFileDrop = useMemoizedFn((e: React.DragEvent) => {
+  function isFileDrop(e: React.DragEvent) {
     const types = Array.from(e.dataTransfer?.types || [])
     return types.includes('text/uri-list') || types.includes('application/vnd.code.tree.explorer')
-  })
+  }
 
-  const handleDragOver = useMemoizedFn((e: React.DragEvent) => {
+  function handleDragOver(e: React.DragEvent) {
     if (!isFileDrop(e)) return
     e.preventDefault()
     e.stopPropagation()
     e.dataTransfer.dropEffect = 'copy'
     setIsDragOver(true)
-  })
+  }
 
-  const handleDragLeave = useMemoizedFn((e: React.DragEvent) => {
+  function handleDragLeave(e: React.DragEvent) {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(false)
-  })
+  }
 
-  const handleDrop = useMemoizedFn(async (e: React.DragEvent) => {
+  async function handleDrop(e: React.DragEvent) {
     if (!isFileDrop(e)) return
     e.preventDefault()
     e.stopPropagation()
@@ -503,23 +505,23 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
       setTimeout(() => {
         textareaRef.current?.focus()
         textareaRef.current?.setSelectionRange(insertCursor, insertCursor)
-        adjustHeight()
+        adjustHeight(textareaRef.current)
       }, 0)
     } catch {
       toast.error('插入路径失败')
     }
-  })
+  }
 
-  const handleAddButtonClick = useMemoizedFn(() => {
+  function handleAddButtonClick() {
     const newText = text + '@'
     setText(newText)
     setCursorPos(newText.length)
     setTimeout(() => {
       textareaRef.current?.focus()
       textareaRef.current?.setSelectionRange(newText.length, newText.length)
-      adjustHeight()
+      adjustHeight(textareaRef.current)
     }, 0)
-  })
+  }
 
   const hasModels = availableModels.length > 0
   const canSend = (text.trim() || draftMedia.length > 0) && !isProcessing
@@ -547,35 +549,15 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
         {showFileMenu && (
           <div ref={menuRef} className="absolute bottom-full left-0 right-0 mb-2 z-10">
             <FilePickerMenu
-              mode={filePickerMode}
               items={fileItems}
-              currentPath={folderPath}
               selectedIndex={fileSelectedIndex}
               isLoading={isFileLoading}
+              isStale={isFileStale}
               showMediaOption={showMediaOption}
               onSelectMedia={() => {
                 void handlePickMedia()
               }}
-              onSwitchToFolder={() => {
-                setFilePickerMode('folder')
-                setFolderPath('')
-                setFileSelectedIndex(0)
-              }}
-              onSwitchToSearch={() => {
-                setFilePickerMode('search')
-                setFolderPath('')
-                setFileSelectedIndex(0)
-              }}
-              onSelectItem={item => applyMention(item.path)}
-              onNavigateUp={() => {
-                setFolderPath(folderPath.split('/').slice(0, -1).join('/'))
-                setFileSelectedIndex(0)
-              }}
-              onNavigateInto={item => {
-                setFilePickerMode('folder')
-                setFolderPath(item.path)
-                setFileSelectedIndex(0)
-              }}
+              onSelectItem={handleSelectFileItem}
               onHover={setFileSelectedIndex}
             />
           </div>

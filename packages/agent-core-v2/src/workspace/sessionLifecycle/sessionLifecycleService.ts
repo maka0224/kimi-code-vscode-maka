@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'pathe';
 
 import type { IInstantiationService } from '#/_base/di/instantiation';
-import { Disposable } from '#/_base/di/lifecycle';
+import { Disposable, type IDisposable } from '#/_base/di/lifecycle';
 import {
   createScopedChildHandle,
   type ISessionScopeHandle,
@@ -13,6 +13,13 @@ import { AsyncEmitter, Emitter, type Event, type IWaitUntil } from '#/_base/even
 import { ILogService } from '#/_base/log/log';
 import { drainLogCloses } from '#/_base/log/logService';
 import { DEFAULT_PLAN_MODE_SECTION } from '#/features/plan/configSection';
+import { IAgentFileHistoryService } from '#/features/fileHistory/fileHistory';
+import { FILE_HISTORY_BLOB_PREFIX } from '#/features/fileHistory/fileHistoryService';
+import {
+  dropFileHistorySession,
+  touchForkedFileHistory,
+} from '#/features/fileHistory/fileHistoryRetention';
+import { IAgentLoopService } from '#/agent/loop/loop';
 import { IAgentPlanService } from '#/features/plan/plan';
 import { LifecycleScope } from '#/app/scopes';
 import { IBootstrapService } from '#/app/bootstrap/bootstrap';
@@ -449,6 +456,7 @@ export class SessionLifecycleService extends Disposable implements ISessionLifec
     }
     await this.hostFs.remove(sessionDirOf(this.bootstrap.homeDir, this.handlerScope, sessionId));
     await this.index.remove(sessionId);
+    await dropFileHistorySession({ docs: this.docs, workspaceId: this.workspaceId, sessionId });
     this.appendLogStore.append('', 'session_index.jsonl', { sessionId, deleted: true });
     await this.appendLogStore.flush();
   }
@@ -494,9 +502,34 @@ export class SessionLifecycleService extends Disposable implements ISessionLifec
     let targetId: string | undefined;
     let target: ISessionScopeHandle | undefined;
     let targetSessionDir: string | undefined;
+    const quiescenceHolds: IDisposable[] = [];
     try {
       await this.assertSubagentModelPoolPreFlight();
+      if (sourceHandle !== undefined) {
+        const sourceAgents = sourceHandle.accessor.get(IAgentLifecycleService);
+        for (const agent of sourceAgents.list()) {
+          const agentHandle = sourceAgents.handleOf(agent.agentId);
+          if (agentHandle === undefined) continue;
+          const hold = agentHandle.accessor.get(IAgentLoopService).tryAcquireQuiescence();
+          if (hold === undefined) {
+            throw new Error2(
+              ErrorCodes.SESSION_FORK_ACTIVE_TURN,
+              `Session "${sourceId}" cannot be forked while a turn is running or queued, or while another fork is copying it`,
+              { details: { sessionId: sourceId, agentId: agent.agentId } },
+            );
+          }
+          quiescenceHolds.push(hold);
+        }
+      }
       await drainSessionMetadataWrites();
+      if (sourceHandle !== undefined) {
+        const sourceAgents = sourceHandle.accessor.get(IAgentLifecycleService);
+        for (const agent of sourceAgents.list()) {
+          const agentHandle = sourceAgents.handleOf(agent.agentId);
+          if (agentHandle === undefined) continue;
+          await agentHandle.accessor.get(IAgentFileHistoryService).settled();
+        }
+      }
       const sourceMeta =
         sourceHandle !== undefined
           ? await sourceHandle.accessor.get(ISessionMetadata).read()
@@ -561,6 +594,14 @@ export class SessionLifecycleService extends Disposable implements ISessionLifec
 
       if (turnSlice !== undefined) {
         await this.pruneTruncatedForkFiles(targetSessionDir, agentIds, retainedAgentIds);
+      } else {
+        await touchForkedFileHistory({
+          docs: this.docs,
+          hostFs: this.hostFs,
+          workspaceId: this.workspaceId,
+          sessionDir: targetSessionDir,
+          sessionId: targetCtx.sessionId,
+        });
       }
 
       const title = opts.title ?? `Fork: ${sourceMeta?.title || sourceId}`;
@@ -607,6 +648,8 @@ export class SessionLifecycleService extends Disposable implements ISessionLifec
         await this.hostFs.remove(targetSessionDir).catch(() => {});
       }
       throw error;
+    } finally {
+      for (const hold of quiescenceHolds) hold.dispose();
     }
   }
 
@@ -714,6 +757,7 @@ export class SessionLifecycleService extends Disposable implements ISessionLifec
       const agentDir = join(targetSessionDir, 'agents', agentId);
       removals.push(this.hostFs.remove(join(agentDir, 'tasks')));
       removals.push(this.hostFs.remove(join(agentDir, 'cron')));
+      removals.push(this.hostFs.remove(join(agentDir, FILE_HISTORY_BLOB_PREFIX)));
     }
     await Promise.all(removals);
   }

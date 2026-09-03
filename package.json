@@ -12,6 +12,7 @@
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "7.58.7",
     "@types/node": "^22.15.3",
     "@vitest/coverage-v8": "4.1.4",
     "tsdown": "0.22.0",
