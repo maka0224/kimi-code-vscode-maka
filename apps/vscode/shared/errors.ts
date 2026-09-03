@@ -98,6 +98,13 @@ export function getUserMessage(code: string, fallback?: string): string {
   return ERROR_MESSAGES[code] || fallback || "An unknown error occurred.";
 }
 
+// KimiError 与 v2 引擎的 Error2 都携带字符串 code，透传真实错误码以便命中
+// ERROR_MESSAGES；不带 code 的普通 Error 回退为 internal
+export function errorCodeOf(error: unknown): string {
+  const code = (error as { readonly code?: unknown } | null)?.code;
+  return typeof code === "string" && code !== "" ? code : "internal";
+}
+
 export function isPreflightError(code: string): boolean {
   return PREFLIGHT_CODES.has(code);
 }

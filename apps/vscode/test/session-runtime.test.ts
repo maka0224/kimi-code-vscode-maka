@@ -519,6 +519,27 @@ describe("session runtime (adapts one SDK session for subscribed Webviews)", () 
     });
   });
 
+  it("passes through the engine error code when the thrown error carries one", async () => {
+    const { runtime, sdk, broadcasts } = createRuntime();
+    // 模拟 v2 引擎的 Error2：非 KimiError，但带字符串 code
+    const engineError = Object.assign(new Error("A response is already being generated."), {
+      code: "session.busy",
+    });
+    sdk.rejectNextPrompt(engineError);
+    sdk.rejectNextPrompt(engineError);
+
+    await expect(runtime.prompt("hello")).resolves.toEqual({ status: "failed", phase: "preflight" });
+
+    expect(streamData(broadcasts)).toContainEqual({
+      type: "error",
+      code: "session.busy",
+      message: "当前会话正在生成回复，请等待完成后再发送。",
+      detail: "A response is already being generated.",
+      phase: "preflight",
+      _sessionId: "session-1",
+    });
+  });
+
   it("cancels stale state and retries once when prompt setup throws before turn start", async () => {
     const { runtime, sdk, broadcasts } = createRuntime();
     sdk.rejectNextPrompt(new Error("Stale turn state"));

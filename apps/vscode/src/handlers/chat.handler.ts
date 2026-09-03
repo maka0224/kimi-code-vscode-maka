@@ -1,9 +1,8 @@
 import * as vscode from "vscode";
-import { isKimiError } from "@moonshot-ai/kimi-code-sdk";
 
 import { Events, Methods } from "../../shared/bridge";
 import type { ApprovalResponse, ContentPart } from "../../shared/legacy-sdk";
-import { getUserMessage } from "../../shared/errors";
+import { errorCodeOf, getUserMessage } from "../../shared/errors";
 import type { ErrorPhase } from "../../shared/types";
 import { VSCodeSettings } from "../config/vscode-settings";
 import { normalizeEffort } from "../runtime/kimi-runtime";
@@ -200,7 +199,7 @@ function emitCaughtError(
   phase: ErrorPhase,
   sessionId?: string,
 ): void {
-  const code = isKimiError(error) ? error.code : "internal";
+  const code = errorCodeOf(error);
   const detail = error instanceof Error ? error.message : String(error);
   ctx.logError(`Chat ${phase} request failed`, error);
   ctx.broadcast(

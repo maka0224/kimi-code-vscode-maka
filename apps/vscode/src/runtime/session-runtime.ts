@@ -1,5 +1,4 @@
 import {
-  isKimiError,
   type ContentPart as SdkContentPart,
   type Event,
   type PromptInput,
@@ -9,7 +8,7 @@ import {
 
 import type { ContentPart as LegacyContentPart, ApprovalResponse } from "../../shared/legacy-sdk";
 import { Events } from "../../shared/bridge";
-import { getUserMessage } from "../../shared/errors";
+import { errorCodeOf, getUserMessage } from "../../shared/errors";
 import type { ErrorPhase, UIStreamEvent } from "../../shared/types";
 import type { SessionNotificationKind } from "../notifications";
 import {
@@ -607,7 +606,7 @@ export class SessionRuntime {
     phase: ErrorPhase,
     options?: { readonly terminal?: boolean; readonly code?: string },
   ): void {
-    const code = options?.code ?? (isKimiError(error) ? error.code : "internal");
+    const code = options?.code ?? errorCodeOf(error);
     const detail = error instanceof Error ? error.message : String(error);
     this.log(`Session ${phase} error`, error);
     this.emitStreamEvent({
