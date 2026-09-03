@@ -6,6 +6,7 @@ import { fileHandlers } from "./file.handler";
 import { workspaceHandlers } from "./workspace.handler";
 import { authHandlers } from "./auth.handler";
 import { usageHandlers } from "./usage.handler";
+import { promptOptimizeHandlers } from "./prompt-optimize.handler";
 import type { Handler } from "./types";
 
 export type { Handler, HandlerContext, BroadcastFn, ReloadWebviewFn, ShowLogsFn } from "./types";
@@ -19,4 +20,5 @@ export const handlers: Record<string, Handler<any, any>> = {
   ...fileHandlers,
   ...authHandlers,
   ...usageHandlers,
+  ...promptOptimizeHandlers,
 };

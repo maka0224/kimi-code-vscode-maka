@@ -1,4 +1,5 @@
 import { Methods, Events } from "shared/bridge";
+import type { OptimizePrefs, OptimizePromptResult } from "shared/bridge";
 import type {
   ApprovalResponse,
   ContentPart,
@@ -21,7 +22,7 @@ import type {
 interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
-  timeout: ReturnType<typeof setTimeout>;
+  timeout?: ReturnType<typeof setTimeout>;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
@@ -85,10 +86,15 @@ class Bridge {
     const id = `${++this.requestId}_${Date.now()}`;
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`Bridge ${method} timed out`));
-      }, timeoutMs);
+      // timeoutMs <= 0 表示不超时（如 streamChat：一个回合可能远超 10 分钟，
+      // 完成/失败都走 StreamEvent 事件推送，返回值无人消费，超时只会误判）
+      const timeout =
+        timeoutMs > 0
+          ? setTimeout(() => {
+              this.pending.delete(id);
+              reject(new Error(`Bridge ${method} timed out`));
+            }, timeoutMs)
+          : undefined;
 
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timeout });
       this.vscode.postMessage({ id, method, params, webviewId: this.webviewId });
@@ -188,7 +194,7 @@ class Bridge {
   }
 
   streamChat(content: string | ContentPart[], model: string, effort: string, planMode: boolean, sessionId?: string) {
-    return this.call<{ done: boolean }>(Methods.StreamChat, { content, model, effort, planMode, sessionId });
+    return this.call<{ done: boolean }>(Methods.StreamChat, { content, model, effort, planMode, sessionId }, 0);
   }
 
   abortChat() {
@@ -297,6 +303,18 @@ class Bridge {
 
   steerChat(content: string | ContentPart[]) {
     return this.call<{ ok: boolean }>(Methods.SteerChat, { content });
+  }
+
+  optimizePrompt(params: { text: string; modelId: string; effort?: string; systemPrompt?: string }) {
+    return this.call<OptimizePromptResult>(Methods.OptimizePrompt, params);
+  }
+
+  getOptimizePrefs() {
+    return this.call<OptimizePrefs>(Methods.GetOptimizePrefs);
+  }
+
+  saveOptimizePrefs(prefs: OptimizePrefs) {
+    return this.call<{ ok: boolean }>(Methods.SaveOptimizePrefs, prefs);
   }
 
   showLogs() {

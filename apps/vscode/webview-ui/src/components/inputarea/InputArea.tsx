@@ -1,6 +1,6 @@
 import { Fragment, useRef, useMemo, useState, useEffect, useCallback } from 'react'
 import { useMemoizedFn } from 'ahooks'
-import { IconSend, IconPlayerStop, IconChevronDown, IconPlus } from '@tabler/icons-react'
+import { IconSend, IconPlayerStop, IconChevronDown, IconPlus, IconArrowBackUp } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
 import {
@@ -21,6 +21,7 @@ import { BottomToolbar } from '../BottomToolbar'
 import { ChatStatus } from '../ChatStatus'
 import { UsagePanel } from '../UsagePanel'
 import { StreamingConfirmDialog } from '../StreamingConfirmDialog'
+import { PromptOptimizePopover } from '../PromptOptimizePopover'
 import { ThinkingButton } from '../ThinkingButton'
 import { PlanModeButton } from '../PlanModeButton'
 import {
@@ -56,6 +57,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   const [cursorPos, setCursorPos] = useState(0)
   const [previewMedia, setPreviewMedia] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [preOptimizeText, setPreOptimizeText] = useState<string | null>(null)
 
   const {
     isStreaming,
@@ -215,6 +217,14 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     addToHistory(text)
     sendMessage(text)
     clearInput()
+    setPreOptimizeText(null)
+  })
+
+  // 提示词优化成功后写回输入框，并记录原稿用于工具行的回退按钮。
+  const handleOptimized = useMemoizedFn((optimized: string) => {
+    setPreOptimizeText(text)
+    setText(optimized)
+    setCursorPos(optimized.length)
   })
 
   // 选中命令（回车/Tab/点击）只补全到输入框，不直接发送
@@ -517,6 +527,10 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   return (
     <div className="p-2 pt-0! flex flex-col min-h-0">
       <BottomToolbar />
+      {/* 输入框上方按钮栏：提示词优化居右 */}
+      <div className="flex items-center justify-end px-0.5 pb-1">
+        <PromptOptimizePopover text={text} onApplied={handleOptimized} disabled={!text.trim()} />
+      </div>
       <div className="relative shrink-0">
         {showSlashMenu && filteredCommands.length > 0 && (
           <div ref={menuRef} className="absolute bottom-full left-0 right-0 mb-2 z-10">
@@ -711,6 +725,24 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
               </Tooltip>
 
               <ActionMenu onAuthAction={onAuthAction} />
+
+              {preOptimizeText !== null && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => {
+                        setText(preOptimizeText)
+                        setPreOptimizeText(null)
+                      }}
+                      className="text-muted-foreground">
+                      <IconArrowBackUp className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>还原优化前的文本</TooltipContent>
+                </Tooltip>
+              )}
 
               {isStreaming ? (
                 <Button variant="destructive" size="icon-xs" onClick={abort}>

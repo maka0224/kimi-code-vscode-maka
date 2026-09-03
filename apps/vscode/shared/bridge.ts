@@ -24,6 +24,9 @@ export const Methods = {
   OpenFolder: "openFolder",
   GetModels: "getModels",
   GetUsage: "getUsage",
+  OptimizePrompt: "optimizePrompt",
+  GetOptimizePrefs: "getOptimizePrefs",
+  SaveOptimizePrefs: "saveOptimizePrefs",
 
   GetMCPServers: "getMCPServers",
   AddMCPServer: "addMCPServer",
@@ -121,6 +124,41 @@ export interface ManagedUsageError {
 
 export type ManagedUsageResult = ManagedUsageOk | ManagedUsageError;
 
+/** Result of a one-shot prompt-optimization generation (no session, no history). */
+export interface OptimizePromptResult {
+  readonly text: string;
+  /** Provider trace identifier (Kimi/KFC only), or null when not reported. */
+  readonly traceId?: string | null;
+}
+
+/** Cached prompt-optimizer preferences (model / thinking / system prompt). */
+export interface OptimizePrefs {
+  readonly modelId?: string;
+  readonly effort?: string;
+  readonly systemPrompt?: string;
+}
+
+/**
+ * 提示词优化的默认 system prompt。用户可在气泡的「编辑提示词」中覆盖，
+ * 覆盖值经 SaveOptimizePrefs 持久化；宿主在 optimizePrompt 未携带
+ * systemPrompt 时回退到本常量，两端共用此单一来源。
+ */
+export const DEFAULT_OPTIMIZE_SYSTEM_PROMPT = `# 角色
+你是一个编程指令优化器。用户会给你一段准备发送给 AI 编程助手的原始文本，你的任务是将其改写为清晰、准确、结构化的指令，使接收方大模型能够无歧义地理解并执行。
+
+# 优化目标（按优先级）
+1. 修正错别字、病句、标点错误，不改变原意。
+2. 消除歧义：把"这个""那个""它"等指代替换为具体对象；把模糊量词（"一些""大概""改一下"）替换为可执行的具体描述。若原文信息不足以消除歧义，保留原样，不要臆造细节。
+3. 补全技术上下文：仅当原文已隐含时可显式化（如提到文件名、函数名、错误信息时规范其格式），禁止编造原文不存在的需求、路径或参数。
+4. 结构化排版：使用 Markdown 组织——需求用有序步骤或要点列出；代码、命令、文件路径、标识符用反引号包裹；错误信息/日志用代码块包裹；多个独立任务用标题或分隔线分开。
+
+# 硬性规则
+- 保持用户原意，不增删需求，不替用户做技术决策。
+- 保持原文语言（中文进中文出，英文进英文出，中英混合保持混合）。
+- 代码片段、命令、URL、版本号等字面内容原样保留，不得"修正"。
+- 只输出优化后的文本本身，不要输出解释、对比、前后说明或任何元信息。
+- 若原文本身已清晰规范，直接原样返回。`;
+
 export type RpcMessageValidation =
   | { readonly ok: true; readonly message: RpcMessage }
   | {
@@ -195,10 +233,22 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
     case Methods.ClearTrackedFiles:
     case Methods.ShowLogs:
     case Methods.ReloadWebview:
+    case Methods.GetOptimizePrefs:
       return params === undefined;
 
     case Methods.AddInputHistory:
       return hasString(params, "text");
+    case Methods.OptimizePrompt:
+      return isPlainObject(params)
+        && hasNonEmptyString(params, "text")
+        && isNonEmptyString(params["modelId"])
+        && isOptionalType(params["effort"], "string")
+        && isOptionalType(params["systemPrompt"], "string");
+    case Methods.SaveOptimizePrefs:
+      return isPlainObject(params)
+        && isOptionalType(params["modelId"], "string")
+        && isOptionalType(params["effort"], "string")
+        && isOptionalType(params["systemPrompt"], "string");
     case Methods.SaveConfig:
       return isPlainObject(params)
         && typeof params["model"] === "string"

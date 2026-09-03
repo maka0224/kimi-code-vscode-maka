@@ -32,6 +32,18 @@ function PopoverAnchor({ ...props }: React.ComponentProps<typeof PopoverPrimitiv
   return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />;
 }
 
+function PopoverArrow({ className, ...props }: React.ComponentProps<typeof PopoverPrimitive.Arrow>) {
+  return (
+    <PopoverPrimitive.Arrow
+      data-slot="popover-arrow"
+      // 与 PopoverContent 的 ring-foreground/10 + shadow-md 对齐，否则箭头
+      // 像一个无描边无阴影的贴片，和框格格不入。
+      className={cn("fill-popover stroke-foreground/10 drop-shadow-[0_1px_1px_rgba(0,0,0,0.08)]", className)}
+      {...props}
+    />
+  );
+}
+
 function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="popover-header" className={cn("flex flex-col gap-0.5 text-sm", className)} {...props} />;
 }
@@ -44,4 +56,4 @@ function PopoverDescription({ className, ...props }: React.ComponentProps<"p">) 
   return <p data-slot="popover-description" className={cn("text-muted-foreground", className)} {...props} />;
 }
 
-export { Popover, PopoverAnchor, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger };
+export { Popover, PopoverAnchor, PopoverArrow, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger };

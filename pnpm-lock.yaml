@@ -53,6 +53,9 @@ importers:
       '@moonshot-ai/kimi-code-sdk':
         specifier: workspace:^
         version: link:../../packages/node-sdk
+      '@moonshot-ai/kosong':
+        specifier: workspace:^
+        version: link:../../packages/kosong
       '@moonshot-ai/migration-legacy':
         specifier: workspace:^
         version: link:../../packages/migration-legacy
