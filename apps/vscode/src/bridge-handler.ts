@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 
 import {
   validateRpcMessage,
+  type ActiveEditorContext,
   type RpcMethod,
   type RpcResult,
 } from "../shared/bridge";
@@ -207,6 +208,7 @@ export class BridgeHandler {
       },
       saveAllDirty: () => this.saveAllDirty(),
       setCustomWorkDir: (workDir) => this.setCustomWorkDir(webviewId, workDir),
+      getActiveEditorContext: () => this.getActiveEditorContext(webviewId),
     };
   }
 
@@ -242,6 +244,28 @@ export class BridgeHandler {
     return selection.start.line === selection.end.line
       ? `@${mentionTarget}:${selection.start.line + 1}`
       : `@${mentionTarget}:${selection.start.line + 1}-${selection.end.line + 1}`;
+  }
+
+  /**
+   * 当前活动编辑器上下文（输入框上方 chip 的数据源）：
+   * mention 复用 getEditorMention 的引用格式，display 为 chip 展示标签。
+   */
+  async getActiveEditorContext(webviewId: string): Promise<ActiveEditorContext | null> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return null;
+    const { document, selection } = editor;
+    const mention = await this.getEditorMention(webviewId, document.uri, selection);
+    if (mention === null) return null;
+
+    const baseName = path.basename(document.uri.fsPath);
+    const startLine = selection.start.line + 1;
+    const endLine = selection.end.line + 1;
+    const display = selection.isEmpty
+      ? `${baseName}:${selection.active.line + 1}`
+      : selection.start.line === selection.end.line
+        ? `${baseName}:${startLine}`
+        : `${baseName}:${startLine}-${endLine}`;
+    return { mention, display };
   }
 
   captureFileBaseline(

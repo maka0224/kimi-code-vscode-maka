@@ -55,6 +55,7 @@ export class KimiWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.onDidDispose(() => {
       void this.bridgeHandler.disposeView(webviewId);
       this.webviews.delete(webviewId);
+      this.lastActiveEditorContext.delete(webviewId);
     });
   }
 
@@ -72,6 +73,7 @@ export class KimiWebviewProvider implements vscode.WebviewViewProvider {
     panel.onDidDispose(() => {
       void this.bridgeHandler.disposeView(webviewId);
       this.webviews.delete(webviewId);
+      this.lastActiveEditorContext.delete(webviewId);
     });
 
     return panel;
@@ -92,6 +94,21 @@ export class KimiWebviewProvider implements vscode.WebviewViewProvider {
       }),
     );
     return inserted;
+  }
+
+  private lastActiveEditorContext = new Map<string, string>();
+
+  /** 活动编辑器/选区变化后向各 webview 推送最新上下文 chip 数据；内容没变时不广播。 */
+  async broadcastActiveEditorContext(): Promise<void> {
+    await Promise.all(
+      [...this.webviews.keys()].map(async (webviewId) => {
+        const context = await this.bridgeHandler.getActiveEditorContext(webviewId);
+        const fingerprint = context === null ? "" : `${context.mention}${context.display}`;
+        if (this.lastActiveEditorContext.get(webviewId) === fingerprint) return;
+        this.lastActiveEditorContext.set(webviewId, fingerprint);
+        this.broadcastInternal(Events.ActiveEditorContextChanged, { context }, webviewId);
+      }),
+    );
   }
 
   private setupWebview(webviewId: string, webview: vscode.Webview): void {

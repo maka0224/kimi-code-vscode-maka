@@ -15,6 +15,15 @@ import { updateLoginContext } from "./utils/context";
 let outputChannel: vscode.OutputChannel | undefined;
 let provider: KimiWebviewProvider | undefined;
 
+/** onDidChangeTextEditorSelection 随光标移动高频触发，广播前统一防抖。 */
+let activeEditorContextTimer: NodeJS.Timeout | undefined;
+function scheduleActiveEditorContextBroadcast(): void {
+  clearTimeout(activeEditorContextTimer);
+  activeEditorContextTimer = setTimeout(() => {
+    void provider?.broadcastActiveEditorContext();
+  }, 150);
+}
+
 const LEGACY_REAUTH_NOTICE_KEY = "maka.legacyMigration.reauthNotice.v1";
 const LEGACY_WARNING_NOTICE_KEY = "maka.legacyMigration.warningNotice.v1";
 
@@ -78,6 +87,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // 由宿主广播窗口聚焦/失焦，webview 据此记录并恢复输入框焦点
     vscode.window.onDidChangeWindowState((state) => {
       provider?.broadcast(state.focused ? Events.WindowFocused : Events.WindowBlurred, {});
+    }),
+    // 输入框上方的编辑器上下文 chip：活动编辑器或选区变化时广播最新值。
+    // 光标移动高频触发，防抖 + provider 内部去重双保险
+    vscode.window.onDidChangeActiveTextEditor(scheduleActiveEditorContextBroadcast),
+    vscode.window.onDidChangeTextEditorSelection((e) => {
+      if (e.textEditor === vscode.window.activeTextEditor) scheduleActiveEditorContextBroadcast();
     }),
   );
 

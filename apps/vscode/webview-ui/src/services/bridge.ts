@@ -121,6 +121,10 @@ class Bridge {
     return this.call<string[]>(Methods.GetInputHistory);
   }
 
+  getActiveEditorContext() {
+    return this.call<import("shared/bridge").ActiveEditorContext | null>(Methods.GetActiveEditorContext);
+  }
+
   addInputHistory(text: string) {
     return this.call<{ ok: boolean }>(Methods.AddInputHistory, { text });
   }

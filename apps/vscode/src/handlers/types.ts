@@ -1,4 +1,5 @@
 import type * as vscode from "vscode";
+import type { ActiveEditorContext } from "../../shared/bridge";
 import type { FileManager } from "../managers/file.manager";
 import type { BaselineManager } from "../managers/baseline.manager";
 import type { KimiHarness } from "@moonshot-ai/kimi-code-sdk";
@@ -36,6 +37,7 @@ export interface HandlerContext {
   closeSession: () => Promise<void>;
   saveAllDirty: () => Promise<void>;
   setCustomWorkDir: (workDir: string | null) => Promise<void>;
+  getActiveEditorContext: () => Promise<ActiveEditorContext | null>;
 }
 
 export type Handler<TParams = void, TResult = unknown> = (params: TParams, ctx: HandlerContext) => Promise<TResult>;

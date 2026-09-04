@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconSettings, IconServer, IconLogout, IconLogin, IconLoader2, IconRefresh, IconFileText, IconFolder, IconBulb } from "@tabler/icons-react";
+import { IconSettings, IconServer, IconLogout, IconLogin, IconLoader2, IconRefresh, IconFileText, IconFolder, IconBulb, IconTextCaption } from "@tabler/icons-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -61,6 +61,11 @@ export function ActionMenu({ className, onAuthAction }: ActionMenuProps) {
     setOpen(false);
   };
 
+  const handleOpenPromptOptimize = () => {
+    useSettingsStore.getState().setPromptOptimizeModalOpen(true);
+    setOpen(false);
+  };
+
   const handleChangeWorkDir = () => {
     useSettingsStore.getState().setWorkDirModalOpen(true);
     setOpen(false);
@@ -105,6 +110,19 @@ export function ActionMenu({ className, onAuthAction }: ActionMenuProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-1rem)] max-w-72 p-1.5 gap-0!" align="end" side="top">
+        <MenuSection title="Kimi Code Maka">
+          <MenuItem onClick={handleOpenInputSuggestion}>
+            <IconBulb className="size-4 text-muted-foreground" />
+            <span className="flex-1">输入建议设置</span>
+          </MenuItem>
+          <MenuItem onClick={handleOpenPromptOptimize}>
+            <IconTextCaption className="size-4 text-muted-foreground" />
+            <span className="flex-1">提示词优化设置</span>
+          </MenuItem>
+        </MenuSection>
+
+        <Separator className="my-px" />
+
         <MenuSection title="设置">
           <MenuItem onClick={handleChangeWorkDir}>
             <IconFolder className="size-4 text-muted-foreground" />
@@ -113,10 +131,6 @@ export function ActionMenu({ className, onAuthAction }: ActionMenuProps) {
           <MenuItem onClick={handleOpenMCPServers}>
             <IconServer className="size-4 text-muted-foreground" />
             <span className="flex-1">MCP 服务器</span>
-          </MenuItem>
-          <MenuItem onClick={handleOpenInputSuggestion}>
-            <IconBulb className="size-4 text-muted-foreground" />
-            <span className="flex-1">输入建议</span>
           </MenuItem>
           <MenuItem onClick={handleOpenSettings}>
             <IconSettings className="size-4 text-muted-foreground" />

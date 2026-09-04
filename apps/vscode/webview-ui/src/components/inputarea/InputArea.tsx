@@ -20,9 +20,10 @@ import { BottomToolbar } from '../BottomToolbar'
 import { ChatStatus } from '../ChatStatus'
 import { UsagePanel } from '../UsagePanel'
 import { StreamingConfirmDialog } from '../StreamingConfirmDialog'
-import { PromptOptimizePopover } from '../PromptOptimizePopover'
+import { PromptOptimizeButton } from '../PromptOptimizeButton'
 import { ThinkingButton } from '../ThinkingButton'
 import { PlanModeButton } from '../PlanModeButton'
+import { EditorContextChip } from './EditorContextChip'
 import {
   getModelById,
   getMediaFallbackModel,
@@ -34,6 +35,7 @@ import {
 } from '@/stores'
 import { bridge, Events } from '@/services'
 import { Content } from '@/lib/content'
+import type { ActiveEditorContext } from 'shared/bridge'
 import { cn } from '@/lib/utils'
 import { useSlashMenu, findActiveToken } from './hooks/useSlashMenu'
 import { useFilePicker } from './hooks/useFilePicker'
@@ -65,6 +67,9 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   const [previewMedia, setPreviewMedia] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [preOptimizeText, setPreOptimizeText] = useState<string | null>(null)
+  // 编辑器上下文 chip：liveCtx 跟随宿主广播实时更新，pinnedList 为已锁定快照（可多项）
+  const [liveCtx, setLiveCtx] = useState<ActiveEditorContext | null>(null)
+  const [pinnedList, setPinnedList] = useState<ActiveEditorContext[]>([])
 
   const {
     isStreaming,
@@ -214,14 +219,20 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   }
 
   function handleSend() {
-    if (isProcessing || (!text.trim() && draftMedia.length === 0)) {
+    if (isProcessing || (!text.trim() && draftMedia.length === 0 && pinnedList.length === 0)) {
       return
     }
 
-    addToHistory(text)
-    sendMessage(text)
+    if (text.trim()) {
+      addToHistory(text)
+    }
+    sendMessage(
+      pinnedList.length > 0 ? `${pinnedList.map(item => item.mention).join(' ')} ${text}`.trim() : text
+    )
     clearInput()
     setPreOptimizeText(null)
+    // 发送后解除所有固定项，避免下一条消息误带旧上下文
+    setPinnedList([])
   }
 
   // 提示词优化成功后写回输入框，并记录原稿用于工具行的回退按钮。
@@ -343,6 +354,20 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     return unsub
   }, [])
 
+  // 编辑器上下文 chip：挂载时拉取初始值，随后跟随宿主广播更新
+  useEffect(() => {
+    void bridge
+      .getActiveEditorContext()
+      .then(setLiveCtx)
+      .catch(() => undefined)
+    return bridge.on<{ context: ActiveEditorContext | null }>(
+      Events.ActiveEditorContextChanged,
+      ({ context }) => {
+        setLiveCtx(context)
+      }
+    )
+  }, [])
+
   // Alt+Tab 切走再切回时恢复输入框焦点：窗口失焦时记录焦点是否在输入框，
   // 窗口重新聚焦后恢复；窗口仍聚焦时的 blur 是用户主动点走，清除标记避免抢焦点。
   // webview iframe 的 blur/focus 事件不可靠，以宿主的窗口状态广播为准，本地事件作兜底
@@ -378,11 +403,12 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {
-      const types = Array.from(e.dataTransfer?.types || [])
+      const types = Array.from(e.dataTransfer?.types || []).map(t => t.toLowerCase())
       if (
-        types.includes('Files') ||
+        types.includes('files') ||
         types.includes('text/uri-list') ||
-        types.includes('application/vnd.code.tree.explorer')
+        types.includes('application/vnd.code.tree.explorer') ||
+        types.includes('resourceurls')
       ) {
         setIsDraggingFile(true)
       }
@@ -467,8 +493,13 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   }
 
   function isFileDrop(e: React.DragEvent) {
-    const types = Array.from(e.dataTransfer?.types || [])
-    return types.includes('text/uri-list') || types.includes('application/vnd.code.tree.explorer')
+    // dataTransfer.types 在浏览器中一律为小写；resourceurls 是标签页拖拽携带的类型
+    const types = Array.from(e.dataTransfer?.types || []).map(t => t.toLowerCase())
+    return (
+      types.includes('text/uri-list') ||
+      types.includes('application/vnd.code.tree.explorer') ||
+      types.includes('resourceurls')
+    )
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -492,8 +523,23 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     setIsDragOver(false)
 
     const uriStrings: string[] = []
+    // 编辑器标签页拖拽：VS Code 将文件 URI 数组写入 ResourceURLs（JSON 字符串数组）
+    const resourceUrls = e.dataTransfer.getData('ResourceURLs')
+    if (resourceUrls) {
+      try {
+        const parsed = JSON.parse(resourceUrls) as unknown
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (typeof item === 'string') uriStrings.push(item)
+          }
+        }
+      } catch {
+        // 忽略无法解析的内部拖拽数据
+      }
+    }
+
     const uriList = e.dataTransfer.getData('text/uri-list')
-    if (uriList) {
+    if (uriList && uriStrings.length === 0) {
       for (const line of uriList.split(/\r?\n/)) {
         const trimmed = line.trim()
         if (!trimmed || trimmed.startsWith('#')) continue
@@ -567,15 +613,20 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   }
 
   const hasModels = availableModels.length > 0
-  const canSend = (text.trim() || draftMedia.length > 0) && !isProcessing
+  // 已固定的项不再作为实时 chip 重复展示（聚焦变化时跳过固定项）
+  const liveChipCtx =
+    liveCtx && !pinnedList.some(item => item.mention === liveCtx.mention) ? liveCtx : null
+  const canSend = (text.trim() || draftMedia.length > 0 || pinnedList.length > 0) && !isProcessing
 
   return (
     <div className="p-2 pt-0! flex flex-col min-h-0">
       <BottomToolbar />
-      {/* 输入框上方按钮栏：提示词优化居右 */}
-      <div className="flex items-center justify-end px-0.5 pb-1">
-        <PromptOptimizePopover text={text} onApplied={handleOptimized} disabled={!text.trim()} />
-      </div>
+      {/* 输入框上方按钮栏：提示词优化居右（输入为空时不显示） */}
+      {text.trim() && (
+        <div className="flex items-center justify-end px-0.5 pb-1">
+          <PromptOptimizeButton text={text} onApplied={handleOptimized} />
+        </div>
+      )}
       <div className="relative shrink-0">
         {showSlashMenu && filteredCommands.length > 0 && (
           <div ref={menuRef} className="absolute bottom-full left-0 right-0 mb-2 z-10">
@@ -617,6 +668,27 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
           {isDraggingFile && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
               <span className="text-xs text-primary">按住 Shift 拖动后释放，在光标处插入引用</span>
+            </div>
+          )}
+          {(pinnedList.length > 0 || liveChipCtx) && (
+            <div className="flex flex-wrap gap-1 px-2 pt-1.5">
+              {pinnedList.map(item => (
+                <EditorContextChip
+                  key={item.mention}
+                  context={item}
+                  pinned
+                  onToggle={() =>
+                    setPinnedList(prev => prev.filter(p => p.mention !== item.mention))
+                  }
+                />
+              ))}
+              {liveChipCtx && (
+                <EditorContextChip
+                  context={liveChipCtx}
+                  pinned={false}
+                  onToggle={() => setPinnedList(prev => [...prev, liveChipCtx])}
+                />
+              )}
             </div>
           )}
           {draftMedia.length > 0 && (

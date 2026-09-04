@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { Events, Methods } from "../../shared/bridge";
+import type { ActiveEditorContext } from "../../shared/bridge";
 import type { Handler } from "./types";
 import type { WorkspaceStatus, WorkspaceTrustState } from "shared/types";
 
@@ -48,6 +49,11 @@ const addInputHistory: Handler<{ text: string }, { ok: boolean }> = async ({ tex
   return { ok: true };
 };
 
+// 输入框上方编辑器上下文 chip 的初始值（后续变化走 ActiveEditorContextChanged 广播）
+const getActiveEditorContext: Handler<void, ActiveEditorContext | null> = async (_, ctx) => {
+  return ctx.getActiveEditorContext();
+};
+
 export const workspaceHandlers: Record<string, Handler<any, any>> = {
   [Methods.CheckWorkspace]: checkWorkspace,
   [Methods.GetWorkspaceTrust]: getWorkspaceTrust,
@@ -55,4 +61,5 @@ export const workspaceHandlers: Record<string, Handler<any, any>> = {
   [Methods.OpenFolder]: openFolder,
   [Methods.GetInputHistory]: getInputHistory,
   [Methods.AddInputHistory]: addInputHistory,
+  [Methods.GetActiveEditorContext]: getActiveEditorContext,
 };

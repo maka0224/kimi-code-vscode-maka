@@ -163,6 +163,7 @@ interface SettingsState {
   mcpModalOpen: boolean;
   workDirModalOpen: boolean;
   inputSuggestionModalOpen: boolean;
+  promptOptimizeModalOpen: boolean;
   currentWorkDir: string | null;
   workspaceRoot: string | null;
   models: ModelConfig[];
@@ -183,6 +184,7 @@ interface SettingsState {
   setMCPModalOpen: (open: boolean) => void;
   setWorkDirModalOpen: (open: boolean) => void;
   setInputSuggestionModalOpen: (open: boolean) => void;
+  setPromptOptimizeModalOpen: (open: boolean) => void;
   setCurrentWorkDir: (workDir: string | null) => void;
   setWorkspaceRoot: (root: string | null) => void;
   initModels: (models: ModelConfig[], defaultModel: string | null, defaultThinking: boolean, defaultThinkingEffort?: string) => void;
@@ -198,6 +200,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   mcpModalOpen: false,
   workDirModalOpen: false,
   inputSuggestionModalOpen: false,
+  promptOptimizeModalOpen: false,
   currentWorkDir: null,
   workspaceRoot: null,
   models: [],
@@ -313,6 +316,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setWorkDirModalOpen: (workDirModalOpen) => set({ workDirModalOpen }),
 
   setInputSuggestionModalOpen: (inputSuggestionModalOpen) => set({ inputSuggestionModalOpen }),
+
+  setPromptOptimizeModalOpen: (promptOptimizeModalOpen) => set({ promptOptimizeModalOpen }),
 
   setCurrentWorkDir: (currentWorkDir) => set({ currentWorkDir }),
 

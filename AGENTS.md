@@ -93,7 +93,7 @@ pnpm --filter kimi-code-maka publish:ovsx       # 发布到 Open VSX
 - 扩展侧所有命令、配置、视图 ID 一律使用 `maka.*` 命名空间（与官方扩展隔离是本分支的立足点），新增贡献项时保持一致。
 - 用户可见的界面文案使用中文（本分支定位是全中文界面）；代码标识符、包名、脚本保持英文。README/CHANGELOG 用中文，设计文档（`apps/vscode/docs/`）用英文，与既有文件各自保持一致。
 - 根 `README.md` 与 `apps/vscode/README.md`（扩展市场展示页，会打进 vsix）内容必须保持同步：修改其一必须同步另一个；市场版额外保留「使用」小节，且链接一律用绝对 URL（相对链接在市场页会失效）。
-- 修复缺陷或新增功能时必须同步更新 README：重要功能记入「特性」扁平列表（不按版本分组，保持简约），所有版本调整记入「更新说明」对应版本小节并以「特性」/「缺陷」前缀标注（两个 README 同步，CHANGELOG 同步追加版本条目）。
+- 修复缺陷或新增功能时必须同步更新 README：重要功能记入「特性」扁平列表（不按版本分组，保持简约），所有版本调整记入「更新说明」对应版本小节，按「特性」/「优化」/「修复」三类分组标注（两个 README 同步，CHANGELOG 同步追加版本条目）。
 - `pnpm-workspace.yaml` 中已配置 `allowBuilds` 白名单与若干 `overrides`（如剥离 `ssh2` 的可选原生依赖），调整依赖时注意这些固定项。
 
 ## 测试策略
@@ -102,6 +102,12 @@ pnpm --filter kimi-code-maka publish:ovsx       # 发布到 Open VSX
 - 扩展有 `test:extension-host`（`scripts/extension-host-smoke.mjs`）做真实 Extension Host 冒烟；`klient` 用 examples 下的 smoke/stress 脚本验证契约边界。
 - 覆盖工具为 `@vitest/coverage-v8`（根 devDependencies）。
 - 仓库没有 GitHub Actions 等 CI 配置，质量把关完全依赖本地 `typecheck / test / build` 三件套。
+
+## 代码知识图谱（codebase-memory）
+
+- 本仓库已索引到 codebase-memory-mcp，图谱项目名为 `F-4github-kimi-code-vscode-maka`；代码结构查询（找定义、追调用链、影响面分析）优先用图谱工具，而非 grep/glob。
+- 大规模增删文件或切换分支后，先用 `index_status` 确认索引新鲜度，必要时重新 `index_repository`（`mode: "fast"` 即可，需要语义搜索才用 `moderate`/`full`）。
+- `node_modules/`、各包 `dist/` 不入图谱；monorepo 跨包调用经 `@moonshot-ai/*` 别名解析，图谱已覆盖。
 
 ## 安全与注意事项
 

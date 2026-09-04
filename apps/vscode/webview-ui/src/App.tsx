@@ -7,6 +7,7 @@ import { InputArea } from "./components/inputarea/InputArea";
 import { MCPServersModal } from "./components/MCPServersModal";
 import { WorkDirModal } from "./components/WorkDirModal";
 import { InputSuggestionModal } from "./components/InputSuggestionModal";
+import { PromptOptimizeModal } from "./components/PromptOptimizeModal";
 import { WorkspaceTrustBanner } from "./components/WorkspaceTrustBanner";
 import { ConfigErrorScreen } from "./components/ConfigErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
@@ -84,6 +85,7 @@ function MainContent({ onAuthAction }: { onAuthAction: () => void }) {
       <MCPServersModal />
       <WorkDirModal />
       <InputSuggestionModal />
+      <PromptOptimizeModal />
     </>
   );
 }

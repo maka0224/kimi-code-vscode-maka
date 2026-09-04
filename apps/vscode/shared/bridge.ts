@@ -15,6 +15,7 @@ export const Methods = {
   TrustWorkspace: "trustWorkspace",
   GetInputHistory: "getInputHistory",
   AddInputHistory: "addInputHistory",
+  GetActiveEditorContext: "getActiveEditorContext",
 
   GetSlashCommands: "getSlashCommands",
   CheckLoginStatus: "checkLoginStatus",
@@ -88,6 +89,17 @@ export interface RpcResult {
   readonly error?: string;
 }
 
+/**
+ * 当前活动编辑器上下文：供输入框上方 chip 展示与锁定后随消息发送。
+ * 无活动编辑器、虚拟文档或无工作区时为 null。
+ */
+export interface ActiveEditorContext {
+  /** 发送用引用，如 @src/a.ts:3-9（空选区时为 @src/a.ts）。 */
+  readonly mention: string;
+  /** 展示用标签，如 a.ts:3-9（空选区时为 a.ts:光标行）。 */
+  readonly display: string;
+}
+
 export interface UsageWindow {
   readonly duration: number;
   readonly unit: "minute" | "hour" | "day" | "week";
@@ -136,15 +148,17 @@ export interface OptimizePromptResult {
   readonly traceId?: string | null;
 }
 
-/** Cached prompt-optimizer preferences (model / thinking / system prompt). */
+/** Cached prompt-optimizer preferences (enabled / model / thinking / system prompt). */
 export interface OptimizePrefs {
+  /** 是否启用提示词优化功能；缺省视为启用。 */
+  readonly enabled?: boolean;
   readonly modelId?: string;
   readonly effort?: string;
   readonly systemPrompt?: string;
 }
 
 /**
- * 提示词优化的默认 system prompt。用户可在气泡的「编辑提示词」中覆盖，
+ * 提示词优化的默认 system prompt。用户可在设置弹窗「提示词优化设置」的「编辑提示词」中覆盖，
  * 覆盖值经 SaveOptimizePrefs 持久化；宿主在 optimizePrompt 未携带
  * systemPrompt 时回退到本常量，两端共用此单一来源。
  */
@@ -232,6 +246,7 @@ export const Events = {
   WindowBlurred: "windowBlurred",
   WorkspaceTrustChanged: "workspaceTrustChanged",
   SessionTitleChanged: "sessionTitleChanged",
+  ActiveEditorContextChanged: "activeEditorContextChanged",
 } as const;
 
 const rpcMethods = new Set<string>(Object.values(Methods));
@@ -268,6 +283,7 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
     case Methods.GetWorkspaceTrust:
     case Methods.TrustWorkspace:
     case Methods.GetInputHistory:
+    case Methods.GetActiveEditorContext:
     case Methods.GetSlashCommands:
     case Methods.CheckLoginStatus:
     case Methods.Login:

@@ -59,7 +59,8 @@ export function historySuffix(history: readonly string[], text: string): string 
 /**
  * 输入建议：按偏好分流——history 仅历史前缀匹配（同步即时），llm 仅模型
  * 生成，hybrid 历史优先模型兜底（停顿后请求）。模型建议返回后继续打字，
- * 只要输入仍是「原文 + 建议」的前缀就保留裁剪，不重复请求。
+ * 只要输入仍是「原文 + 建议」的前缀就保留裁剪，不重复请求；Tab 完整
+ * 接受后基于新文本继续请求下一段建议，可连续接力。
  */
 export function useInputSuggestion({ text, currentModelId, enabled: externalEnabled }: UseInputSuggestionOptions) {
   const { prefs } = useInputSuggestionPrefs();
@@ -87,8 +88,9 @@ export function useInputSuggestion({ text, currentModelId, enabled: externalEnab
       setLlm(null);
       return;
     }
-    // 输入仍是已有建议的前缀：建议继续有效，不发新请求。
-    if (llm !== null && (llm.base + llm.suffix).startsWith(text) && text.startsWith(llm.base)) {
+    // 输入仍是已有建议的前缀（且未完整接受）：建议继续有效，不发新请求。
+    // 完整接受（text 恰好等于原文+建议）时落到下面，基于新文本请求下一段建议。
+    if (llm !== null && text !== llm.base + llm.suffix && (llm.base + llm.suffix).startsWith(text) && text.startsWith(llm.base)) {
       return;
     }
     setLlm(null);

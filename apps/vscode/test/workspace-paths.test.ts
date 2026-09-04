@@ -114,6 +114,7 @@ const vscodeHost = vi.hoisted(() => {
     findFiles,
     executeCommand,
     showWarningMessage,
+    activeTextEditor: undefined as unknown,
     workspaceFolders: [] as Array<{ uri: Uri }>,
   };
 });
@@ -144,7 +145,9 @@ vi.mock("vscode", () => ({
   },
   commands: { executeCommand: vscodeHost.executeCommand },
   window: {
-    activeTextEditor: undefined,
+    get activeTextEditor() {
+      return vscodeHost.activeTextEditor;
+    },
     showWarningMessage: vscodeHost.showWarningMessage,
     showQuickPick: vi.fn(),
     showOpenDialog: vi.fn(),
@@ -171,6 +174,7 @@ let extraRoots: string[];
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "kimi-vscode-workspace-paths-"));
   vscodeHost.workspaceFolders.splice(0, vscodeHost.workspaceFolders.length, { uri: vscodeHost.Uri.file(root) });
+  vscodeHost.activeTextEditor = undefined;
   vscodeHost.stat.mockImplementation((uri: { fsPath: string }) => stat(uri.fsPath));
   vscodeHost.readFile.mockImplementation((uri: { fsPath: string }) => readFile(uri.fsPath));
   vscodeHost.findFiles.mockResolvedValue([]);
@@ -395,6 +399,63 @@ describe("Webview workspace paths (selected-directory containment)", () => {
     );
 
     expect(mention).toBeNull();
+  });
+
+  it("builds the active editor context chip payload for a multi-line selection", async () => {
+    const workDir = join(root, "project");
+    const inside = join(workDir, "src", "inside.ts");
+    await mkdir(join(workDir, "src"), { recursive: true });
+    await writeFile(inside, "inside");
+    const bridge = createBridge();
+    await bridge.handle({ id: "set", method: Methods.SetWorkDir, params: { workDir } }, "view-1");
+    vscodeHost.activeTextEditor = {
+      document: { uri: vscodeHost.Uri.file(inside) },
+      selection: { isEmpty: false, start: { line: 2 }, end: { line: 4 }, active: { line: 4 } },
+    };
+
+    const result = await bridge.handle(
+      { id: "ctx", method: Methods.GetActiveEditorContext },
+      "view-1",
+    );
+
+    expect(result.result).toEqual({ mention: "@src/inside.ts:3-5", display: "inside.ts:3-5" });
+  });
+
+  it("shows the cursor line in the chip display for an empty selection", async () => {
+    const workDir = join(root, "project");
+    const inside = join(workDir, "src", "inside.ts");
+    await mkdir(join(workDir, "src"), { recursive: true });
+    await writeFile(inside, "inside");
+    const bridge = createBridge();
+    await bridge.handle({ id: "set", method: Methods.SetWorkDir, params: { workDir } }, "view-1");
+    vscodeHost.activeTextEditor = {
+      document: { uri: vscodeHost.Uri.file(inside) },
+      selection: { isEmpty: true, start: { line: 6 }, end: { line: 6 }, active: { line: 6 } },
+    };
+
+    const context = await bridge.getActiveEditorContext("view-1");
+
+    expect(context).toEqual({ mention: "@src/inside.ts", display: "inside.ts:7" });
+  });
+
+  it("returns null active editor context without an active editor", async () => {
+    const bridge = createBridge();
+
+    const context = await bridge.getActiveEditorContext("view-1");
+
+    expect(context).toBeNull();
+  });
+
+  it("returns null active editor context for a virtual document", async () => {
+    const bridge = createBridge();
+    vscodeHost.activeTextEditor = {
+      document: { uri: vscodeHost.Uri.from({ scheme: "untitled", path: "Untitled-1" }) },
+      selection: { isEmpty: true, start: { line: 0 }, end: { line: 0 }, active: { line: 0 } },
+    };
+
+    const context = await bridge.getActiveEditorContext("view-1");
+
+    expect(context).toBeNull();
   });
 
   itWithSymlink("rejects a selected working directory whose symlink target leaves the workspace", async () => {
