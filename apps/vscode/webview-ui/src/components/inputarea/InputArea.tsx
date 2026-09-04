@@ -40,6 +40,7 @@ import { useFilePicker } from './hooks/useFilePicker'
 import { useMediaUpload } from './hooks/useMediaUpload'
 import { useClickOutside } from './hooks/useClickOutside'
 import { useInputHistory } from './hooks/useInputHistory'
+import { useInputSuggestion } from './hooks/useInputSuggestion'
 import { computeMentionInsert } from './utils'
 
 interface InputAreaProps {
@@ -52,11 +53,12 @@ const SWITCH_CACHE_NOTE =
 function adjustHeight(textarea: HTMLTextAreaElement | null) {
   if (!textarea) return
   textarea.style.height = 'auto'
-  textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 210)}px`
 }
 
 export function InputArea({ onAuthAction }: InputAreaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState('')
   const [cursorPos, setCursorPos] = useState(0)
@@ -224,6 +226,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
   // 提示词优化成功后写回输入框，并记录原稿用于工具行的回退按钮。
   function handleOptimized(optimized: string) {
+    suppressSuggestion(optimized)
     setPreOptimizeText(text)
     setText(optimized)
     setCursorPos(optimized.length)
@@ -296,6 +299,24 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
       removeActiveToken()
     }
   }
+
+  const { suggestion, dismiss: dismissSuggestion, suppress: suppressSuggestion } = useInputSuggestion({
+    text,
+    currentModelId: currentModel,
+    enabled: !isStreaming && !showSlashMenu && !showFileMenu
+  })
+
+  // 镜像层滚动跟随 textarea（overflow-hidden 元素也可设 scrollTop）
+  const syncGhostScroll = () => {
+    if (ghostRef.current && textareaRef.current) {
+      ghostRef.current.scrollTop = textareaRef.current.scrollTop
+    }
+  }
+
+  // 建议出现/更新时对齐一次滚动位置
+  useEffect(() => {
+    syncGhostScroll()
+  }, [suggestion])
 
   useClickOutside([textareaRef, menuRef], showSlashMenu || showFileMenu, closeMenus)
 
@@ -393,6 +414,26 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
 
     if (handleFileMenuKey(e)) {
       return
+    }
+
+    // 有后续建议时：Tab 接受、Esc 丢弃
+    if (suggestion) {
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        const next = text + suggestion
+        setText(next)
+        setCursorPos(next.length)
+        setTimeout(() => {
+          textareaRef.current?.setSelectionRange(next.length, next.length)
+          adjustHeight(textareaRef.current)
+        }, 0)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        dismissSuggestion()
+        return
+      }
     }
 
     if (handleHistoryKey(e)) {
@@ -592,22 +633,35 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
             </div>
           )}
 
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onSelect={handleSelect}
-            onPaste={handlePaste}
-            placeholder={
-              isStreaming ? '继续追问…' : '向 Kimi Code Maka 提问…（/ 命令 · @ 文件 · Alt+K 代码）'
-            }
-            className={cn(
-              'w-full min-h-12 max-h-35 px-2.5 py-1.5 text-xs leading-relaxed',
-              'bg-transparent resize-none outline-none border-none overflow-y-auto',
-              'placeholder:text-muted-foreground'
+          <div className="relative">
+            {/* ghost 建议镜像层：与 textarea 排版一致，透明原文 + 灰色建议 */}
+            {suggestion && (
+              <div
+                ref={ghostRef}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 overflow-hidden px-2.5 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words">
+                <span className="text-transparent">{text}</span>
+                <span className="text-muted-foreground/60">{suggestion}</span>
+              </div>
             )}
-          />
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onSelect={handleSelect}
+              onPaste={handlePaste}
+              onScroll={syncGhostScroll}
+              placeholder={
+                isStreaming ? '继续追问…' : '向 Kimi Code Maka 提问…（/ 命令 · @ 文件 · Alt+K 代码）'
+              }
+              className={cn(
+                'w-full min-h-18 max-h-[210px] px-2.5 py-1.5 text-xs leading-relaxed',
+                'bg-transparent resize-none outline-none border-none overflow-y-auto',
+                'placeholder:text-muted-foreground'
+              )}
+            />
+          </div>
 
           <div className="flex items-center justify-between px-1.5 pb-1.5">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -717,6 +771,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
                       variant="ghost"
                       size="icon-xs"
                       onClick={() => {
+                        suppressSuggestion(preOptimizeText)
                         setText(preOptimizeText)
                         setPreOptimizeText(null)
                       }}

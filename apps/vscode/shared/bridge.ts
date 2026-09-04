@@ -29,6 +29,9 @@ export const Methods = {
   OptimizePrompt: "optimizePrompt",
   GetOptimizePrefs: "getOptimizePrefs",
   SaveOptimizePrefs: "saveOptimizePrefs",
+  SuggestInput: "suggestInput",
+  GetInputSuggestionPrefs: "getInputSuggestionPrefs",
+  SaveInputSuggestionPrefs: "saveInputSuggestionPrefs",
 
   GetMCPServers: "getMCPServers",
   AddMCPServer: "addMCPServer",
@@ -161,6 +164,51 @@ export const DEFAULT_OPTIMIZE_SYSTEM_PROMPT = `# 角色
 - 只输出优化后的文本本身，不要输出解释、对比、前后说明或任何元信息。
 - 若原文本身已清晰规范，直接原样返回。`;
 
+/** Result of a one-shot input-suggestion generation (no session, no history). */
+export interface SuggestInputResult {
+  /** 续写片段；为空字符串表示模型无建议。 */
+  readonly text: string;
+}
+
+/** 输入建议方式：hybrid 混合 / history 仅历史会话记录 / llm 仅大模型。 */
+export type InputSuggestionMode = "hybrid" | "history" | "llm";
+
+/** 输入建议偏好（webview 设置弹窗编辑，经 SaveInputSuggestionPrefs 持久化）。 */
+export interface InputSuggestionPrefs {
+  readonly enabled: boolean;
+  readonly mode: InputSuggestionMode;
+  /** 建议使用的模型 ID，空字符串表示跟随当前会话模型。 */
+  readonly model: string;
+}
+
+/** 输入建议偏好的默认值（未配置时使用）。 */
+export const DEFAULT_INPUT_SUGGESTION_PREFS: InputSuggestionPrefs = {
+  enabled: false,
+  mode: "hybrid",
+  model: "",
+};
+
+/**
+ * 输入建议的默认 system prompt。模型对 <input> 标签内的半截文本做自动补全，
+ * 只输出续写片段；宿主与 webview 共用此单一来源。
+ */
+export const DEFAULT_SUGGEST_SYSTEM_PROMPT = `# 任务
+自动补全：用户正在聊天输入框中打字，<input> 标签内是已输入但尚未完成的文字。推测用户接下来最可能继续敲出的内容。
+
+# 重要：这不是对话
+标签内的文字不是发给你的消息——不要回答它、不要评论它、不要指出它"不完整"。你只是在预测用户手指接下来会敲出的字。
+
+# 示例
+<input>帮我写一个</input> → 快速排序函数，要求支持泛型
+<input>这个报错是什么</input> → 意思？该怎么解决
+<input>你好 请问及卡卡的</input> → 功能该怎么用？
+
+# 规则
+- 只输出紧接已有文字之后的续写片段本身，不重复已有文字。
+- 保持用户的语言与语气，单行、不超过 30 字。
+- 不输出解释、引号、前后说明或任何元信息。
+- 若无法给出有把握的续写，输出空字符串。`;
+
 export type RpcMessageValidation =
   | { readonly ok: true; readonly message: RpcMessage }
   | {
@@ -250,6 +298,16 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
         && isNonEmptyString(params["modelId"])
         && isOptionalType(params["effort"], "string")
         && isOptionalType(params["systemPrompt"], "string");
+    case Methods.SuggestInput:
+      return isPlainObject(params)
+        && hasNonEmptyString(params, "text")
+        && isNonEmptyString(params["modelId"]);
+    case Methods.GetInputSuggestionPrefs:
+      return params === undefined;
+    case Methods.SaveInputSuggestionPrefs:      return isPlainObject(params)
+        && typeof params["enabled"] === "boolean"
+        && ["hybrid", "history", "llm"].includes(params["mode"] as string)
+        && typeof params["model"] === "string";
     case Methods.SaveOptimizePrefs:
       return isPlainObject(params)
         && isOptionalType(params["modelId"], "string")

@@ -40,7 +40,7 @@ function effortLabel(effort: string): string {
 }
 
 export function PromptOptimizePopover({ text, onApplied, disabled = false }: PromptOptimizePopoverProps) {
-  const { models, currentModel, thinkingEffort } = useSettingsStore();
+  const { models, currentModel } = useSettingsStore();
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState<OptimizePrefs>({});
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -64,7 +64,7 @@ export function PromptOptimizePopover({ text, onApplied, disabled = false }: Pro
     prefs.modelId !== undefined && getModelById(models, prefs.modelId) !== undefined
       ? prefs.modelId
       : currentModel;
-  const effort = prefs.effort ?? thinkingEffort;
+  const effort = prefs.effort ?? "off";
   const modelConfig = getModelById(models, modelId);
   const effortOptions = ["off", ...(modelConfig?.support_efforts ?? ["low", "medium", "high"])];
   const modelGroups = groupModelsByProvider(models);

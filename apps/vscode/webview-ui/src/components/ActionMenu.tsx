@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconSettings, IconServer, IconLogout, IconLogin, IconLoader2, IconRefresh, IconFileText, IconFolder } from "@tabler/icons-react";
+import { IconSettings, IconServer, IconLogout, IconLogin, IconLoader2, IconRefresh, IconFileText, IconFolder, IconBulb } from "@tabler/icons-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -56,6 +56,11 @@ export function ActionMenu({ className, onAuthAction }: ActionMenuProps) {
     setOpen(false);
   };
 
+  const handleOpenInputSuggestion = () => {
+    useSettingsStore.getState().setInputSuggestionModalOpen(true);
+    setOpen(false);
+  };
+
   const handleChangeWorkDir = () => {
     useSettingsStore.getState().setWorkDirModalOpen(true);
     setOpen(false);
@@ -108,6 +113,10 @@ export function ActionMenu({ className, onAuthAction }: ActionMenuProps) {
           <MenuItem onClick={handleOpenMCPServers}>
             <IconServer className="size-4 text-muted-foreground" />
             <span className="flex-1">MCP 服务器</span>
+          </MenuItem>
+          <MenuItem onClick={handleOpenInputSuggestion}>
+            <IconBulb className="size-4 text-muted-foreground" />
+            <span className="flex-1">输入建议</span>
           </MenuItem>
           <MenuItem onClick={handleOpenSettings}>
             <IconSettings className="size-4 text-muted-foreground" />

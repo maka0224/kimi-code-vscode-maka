@@ -31,7 +31,7 @@ const OPTIMIZE_PREFS_KEY = "maka.optimizePrefs";
 // Per-provider API-key env fallbacks, mirroring the engine's provider-manager
 // (packages/agent-core/src/session/provider-manager.ts) so a one-shot request
 // resolves credentials exactly like a session turn would.
-const PROVIDER_API_KEY_ENV: Record<string, string> = {
+export const PROVIDER_API_KEY_ENV: Record<string, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   openai_responses: "OPENAI_API_KEY",
@@ -48,6 +48,8 @@ const PROVIDER_BASE_URL_ENV: Record<string, string> = {
   "google-genai": "GOOGLE_GEMINI_BASE_URL",
   vertexai: "GOOGLE_VERTEX_BASE_URL",
 };
+
+export type { ProviderEntry };
 
 const optimizePrompt: Handler<OptimizePromptParams, OptimizePromptResult> = async (params, ctx) => {
   const config = await ctx.harness.getConfig({ reload: true });
@@ -86,7 +88,7 @@ const optimizePrompt: Handler<OptimizePromptParams, OptimizePromptResult> = asyn
   return { text, traceId: result.traceId ?? null };
 };
 
-async function resolveApiKey(
+export async function resolveApiKey(
   ctx: HandlerContext,
   providerName: string,
   provider: ProviderEntry,
@@ -101,7 +103,7 @@ async function resolveApiKey(
 }
 
 /** Build a kosong chat provider, mirroring the engine's toKosongProviderConfig. */
-function buildChatProvider(
+export function buildChatProvider(
   alias: ModelAlias,
   provider: ProviderEntry,
   apiKey: string | undefined,

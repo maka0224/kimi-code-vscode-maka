@@ -318,6 +318,18 @@ class Bridge {
     return this.call<OptimizePromptResult>(Methods.OptimizePrompt, params);
   }
 
+  suggestInput(params: { text: string; modelId: string }) {
+    return this.call<import("shared/bridge").SuggestInputResult>(Methods.SuggestInput, params);
+  }
+
+  getInputSuggestionPrefs() {
+    return this.call<import("shared/bridge").InputSuggestionPrefs>(Methods.GetInputSuggestionPrefs);
+  }
+
+  saveInputSuggestionPrefs(prefs: import("shared/bridge").InputSuggestionPrefs) {
+    return this.call<{ ok: boolean }>(Methods.SaveInputSuggestionPrefs, prefs);
+  }
+
   getOptimizePrefs() {
     return this.call<OptimizePrefs>(Methods.GetOptimizePrefs);
   }
