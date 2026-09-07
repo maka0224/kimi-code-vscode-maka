@@ -421,7 +421,7 @@ describe("Webview workspace paths (selected-directory containment)", () => {
     expect(result.result).toEqual({ mention: "@src/inside.ts:3-5", display: "inside.ts:3-5" });
   });
 
-  it("shows the cursor line in the chip display for an empty selection", async () => {
+  it("shows only the file name in the chip display for an empty selection", async () => {
     const workDir = join(root, "project");
     const inside = join(workDir, "src", "inside.ts");
     await mkdir(join(workDir, "src"), { recursive: true });
@@ -435,7 +435,7 @@ describe("Webview workspace paths (selected-directory containment)", () => {
 
     const context = await bridge.getActiveEditorContext("view-1");
 
-    expect(context).toEqual({ mention: "@src/inside.ts", display: "inside.ts:7" });
+    expect(context).toEqual({ mention: "@src/inside.ts", display: "inside.ts" });
   });
 
   it("returns null active editor context without an active editor", async () => {

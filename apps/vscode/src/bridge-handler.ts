@@ -261,7 +261,7 @@ export class BridgeHandler {
     const startLine = selection.start.line + 1;
     const endLine = selection.end.line + 1;
     const display = selection.isEmpty
-      ? `${baseName}:${selection.active.line + 1}`
+      ? baseName
       : selection.start.line === selection.end.line
         ? `${baseName}:${startLine}`
         : `${baseName}:${startLine}-${endLine}`;

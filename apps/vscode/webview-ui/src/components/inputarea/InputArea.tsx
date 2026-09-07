@@ -601,6 +601,21 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     }
   }
 
+  /** 将编辑器上下文项以 @ 引用插入输入框当前光标位置 */
+  function appendMentionToCursor(mention: string) {
+    const before = text.slice(0, cursorPos)
+    const after = text.slice(cursorPos)
+    const newText = `${before}@${mention} ${after}`
+    const newCursorPos = before.length + 1 + mention.length + 1
+    setText(newText)
+    setCursorPos(newCursorPos)
+    setTimeout(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
+      adjustHeight(textareaRef.current)
+    }, 0)
+  }
+
   function handleAddButtonClick() {
     const newText = text + '@'
     setText(newText)
@@ -680,6 +695,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
                   onToggle={() =>
                     setPinnedList(prev => prev.filter(p => p.mention !== item.mention))
                   }
+                  onAppend={() => appendMentionToCursor(item.mention)}
                 />
               ))}
               {liveChipCtx && (
@@ -687,6 +703,7 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
                   context={liveChipCtx}
                   pinned={false}
                   onToggle={() => setPinnedList(prev => [...prev, liveChipCtx])}
+                  onAppend={() => appendMentionToCursor(liveChipCtx.mention)}
                 />
               )}
             </div>
