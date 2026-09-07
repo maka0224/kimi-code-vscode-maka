@@ -35,6 +35,7 @@ export interface ExtensionConfig {
   enableNewConversationShortcut: boolean;
   showThinkingContent: boolean;
   showThinkingExpanded: boolean;
+  showToolUsageSummary: boolean;
   version: string;
 }
 

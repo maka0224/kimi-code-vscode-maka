@@ -29,6 +29,7 @@ export const DEFAULT_EXTENSION_CONFIG: ExtensionConfig = {
   enableNewConversationShortcut: false,
   showThinkingContent: true,
   showThinkingExpanded: true,
+  showToolUsageSummary: true,
   version: "",
 };
 

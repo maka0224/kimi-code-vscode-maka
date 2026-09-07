@@ -11,12 +11,14 @@ import { MediaThumbnail } from "./MediaThumbnail";
 import { MediaPreviewModal } from "./MediaPreviewModal";
 import { InlineError } from "./InlineError";
 import { PlanCard } from "./PlanCard";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { StreamingConfirmDialog } from "./StreamingConfirmDialog";
 import { useExtensionImageUrl } from "./hooks/useExtensionImageUrl";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
-import { useChatStore } from "@/stores";
+import { useChatStore, useSettingsStore } from "@/stores";
 import { bridge } from "@/services";
+import { extractToolUsage, hasToolUsage } from "@/lib/tool-usage";
 import type { ChatMessage as ChatMessageType, UIStep, UIStepItem } from "@/stores/chat.store";
 import type { ContentPart } from "shared/legacy-sdk";
 
@@ -244,6 +246,57 @@ function UserMessage({ message }: { message: ChatMessageType }) {
   );
 }
 
+/** 本轮技能/MCP 工具使用摘要：底部只显示计数 chip，点击弹出明细（避免列表过长撑乱排版） */
+function ToolUsageChips({ steps }: { steps: UIStep[] }) {
+  const showToolUsageSummary = useSettingsStore((s) => s.extensionConfig.showToolUsageSummary);
+  if (!showToolUsageSummary) return null;
+  const usage = extractToolUsage(steps);
+  if (!hasToolUsage(usage)) return null;
+  const skillTotal = usage.skills.reduce((sum, [, n]) => sum + n, 0);
+  const mcpTotal = usage.mcpTools.reduce((sum, [, n]) => sum + n, 0);
+  const triggerText = [
+    skillTotal > 0 ? `技能 ${skillTotal}` : "",
+    mcpTotal > 0 ? `MCP ${mcpTotal}` : "",
+  ].filter(Boolean).join(" · ");
+  const renderEntries = (entries: [string, number][]) =>
+    entries.map(([name, count]) => (
+      <div key={name} className="flex items-center justify-between gap-4">
+        <span className="truncate">{name}</span>
+        {count > 1 && <span className="text-muted-foreground shrink-0">×{count}</span>}
+      </div>
+    ));
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-[10px] text-muted-foreground pt-1 pl-1 shrink-0 cursor-pointer hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+          title="本轮技能/MCP 工具使用（点击查看明细）"
+        >
+          {triggerText}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-3">
+        <div className="space-y-2 text-xs">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">本轮工具使用</div>
+          {usage.skills.length > 0 && (
+            <div className="space-y-0.5">
+              <div className="text-muted-foreground">技能</div>
+              {renderEntries(usage.skills)}
+            </div>
+          )}
+          {usage.mcpTools.length > 0 && (
+            <div className="space-y-0.5">
+              <div className="text-muted-foreground">MCP 工具</div>
+              {renderEntries(usage.mcpTools)}
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMessageType; turnIndex?: number; isStreaming?: boolean }) {
   const [previewMedia, setPreviewMedia] = useState<string | null>(null);
   const isCompacting = useChatStore((s) => s.isCompacting);
@@ -360,6 +413,7 @@ function AssistantMessage({ message, turnIndex, isStreaming }: { message: ChatMe
                   {message.forkable !== false && turnIndex !== undefined && turnIndex >= 0 && <ForkButton turnIndex={turnIndex} />}
                 </div>
               )}
+              {!isStreaming && hasSteps && <ToolUsageChips steps={steps} />}
               {!isStreaming && message.durationMs !== undefined && (
                 <span className="text-[10px] text-muted-foreground pt-1 pl-1 shrink-0">用时 {formatDuration(message.durationMs)}</span>
               )}

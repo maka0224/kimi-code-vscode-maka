@@ -752,9 +752,12 @@ export function extractPromptText(input: string | LegacyContentPart[] | undefine
     .join(" ");
 }
 
-/** 未开启大模型自动命名时的回退会话名：首条提问压缩空白后取前 20 个字；无文本返回 undefined。 */
+/** 未开启大模型自动命名时的回退会话名：取首条提问的首个段落（首个换行之前，跳过前导空行），压缩空白后截断到 60 个字；无文本返回 undefined。 */
 export function fallbackSessionTitle(promptText: string): string | undefined {
-  const normalized = promptText.replace(/\s+/g, " ").trim();
-  if (normalized === "") return undefined;
-  return [...normalized].slice(0, 20).join("");
+  const firstParagraph = promptText
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .find((line) => line !== "");
+  if (firstParagraph === undefined) return undefined;
+  return [...firstParagraph].slice(0, 60).join("");
 }

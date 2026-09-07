@@ -54,6 +54,11 @@ export const VSCodeSettings = {
     return getConfig().get<boolean>("showThinkingExpanded", false);
   },
 
+  /** 每轮回复底部显示本轮技能/MCP 工具使用摘要（运行时读取，即时生效）。 */
+  get showToolUsageSummary(): boolean {
+    return getConfig().get<boolean>("showToolUsageSummary", true);
+  },
+
   get editorContext(): "never" | "onConversationStart" | "onFileChange" {
     return getConfig().get<"never" | "onConversationStart" | "onFileChange">("editorContext", "never");
   },
@@ -101,6 +106,7 @@ export const VSCodeSettings = {
       enableNewConversationShortcut: this.enableNewConversationShortcut,
       showThinkingContent: this.showThinkingContent,
       showThinkingExpanded: this.showThinkingExpanded,
+      showToolUsageSummary: this.showToolUsageSummary,
       version: EXTENSION_VERSION,
     };
   },
@@ -111,7 +117,7 @@ export function onSettingsChange(callback: (changedKeys: string[]) => void): vsc
     if (!e.affectsConfiguration("maka")) {
       return;
     }
-    const keys = ["yoloMode", "autosave", "enableNewConversationShortcut", "useCtrlEnterToSend", "showThinkingContent", "showThinkingExpanded", "editorContext"];
+    const keys = ["yoloMode", "autosave", "enableNewConversationShortcut", "useCtrlEnterToSend", "showThinkingContent", "showThinkingExpanded", "showToolUsageSummary", "editorContext"];
     const changedKeys = keys.filter((key) => e.affectsConfiguration(`maka.${key}`));
     if (changedKeys.length > 0) {
       callback(changedKeys);

@@ -289,7 +289,7 @@ export class KimiRuntime {
       notify: this.notify,
       // 会话命名：勾选 maka.autoGenerateSessionTitle 时首轮完成后调用大模型生成标题
       // （仅 v2 引擎支持，v1 的 generateSessionTitle 直接抛错），引擎会自发 meta 事件回写；
-      // 未勾选时回退为首条提问前 20 字直接命名（renameSession 不发事件，返回标题由调用方回写）。
+      // 未勾选时回退为首条提问首个段落（上限 60 字）直接命名（renameSession 不发事件，返回标题由调用方回写）。
       // 设置运行时读取，切换无需重载窗口。
       autoSessionTitle: async (firstPromptText) => {
         const canGenerate =

@@ -94,6 +94,8 @@ pnpm --filter kimi-code-maka publish:ovsx       # 发布到 Open VSX
 - 用户可见的界面文案使用中文（本分支定位是全中文界面）；代码标识符、包名、脚本保持英文。README/CHANGELOG 用中文，设计文档（`apps/vscode/docs/`）用英文，与既有文件各自保持一致。
 - 根 `README.md` 与 `apps/vscode/README.md`（扩展市场展示页，会打进 vsix）内容必须保持同步：修改其一必须同步另一个；市场版额外保留「使用」小节，且链接一律用绝对 URL（相对链接在市场页会失效）。
 - 修复缺陷或新增功能时必须同步更新 README：重要功能记入「特性」扁平列表（不按版本分组，保持简约），所有版本调整记入「更新说明」对应版本小节，按「特性」/「优化」/「修复」三类分组标注（两个 README 同步，CHANGELOG 同步追加版本条目）。
+- 版本号规则：功能/修复改动**不要修改 `package.json` 版本号**；改动前先查看 `apps/vscode/package.json` 确认当前版本，文档（README×2、CHANGELOG）把新内容追加到下一个版本的小节。版本 bump 只由用户在发布时统一进行，届时根 `package.json` 与 `apps/vscode/package.json` 的 `version` 必须同步改为一致，并更新两份 README 的「当前版本」。
+- 更新说明风格：每条一句话说完「是什么 + 怎么用/在哪关」，不写实现细节与废话（细节留在提交信息）。示例：`- 特性：每轮回复底部显示技能/MCP 工具使用摘要，可用 \`maka.showToolUsageSummary\` 关闭。`
 - `pnpm-workspace.yaml` 中已配置 `allowBuilds` 白名单与若干 `overrides`（如剥离 `ssh2` 的可选原生依赖），调整依赖时注意这些固定项。
 
 ## 测试策略

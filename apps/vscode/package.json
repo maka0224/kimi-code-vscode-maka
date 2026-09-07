@@ -3,7 +3,7 @@
   "publisher": "maka",
   "displayName": "Kimi Code Maka",
   "description": "Kimi Code Maka - an independent fork of the Kimi Code VS Code extension",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -78,6 +78,11 @@
           "type": "boolean",
           "default": false,
           "description": "显示思考/推理内容时默认展开（需先开启「显示思考内容」）"
+        },
+        "maka.showToolUsageSummary": {
+          "type": "boolean",
+          "default": true,
+          "description": "每轮回复底部显示本轮使用的技能与 MCP 工具摘要（便于调试调用逻辑）"
         },
         "maka.editorContext": {
           "type": "string",

@@ -601,12 +601,12 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
     }
   }
 
-  /** 将编辑器上下文项以 @ 引用插入输入框当前光标位置 */
+  /** 将编辑器上下文项以 @ 引用插入输入框当前光标位置（mention 本身已含 @ 前缀） */
   function appendMentionToCursor(mention: string) {
     const before = text.slice(0, cursorPos)
     const after = text.slice(cursorPos)
-    const newText = `${before}@${mention} ${after}`
-    const newCursorPos = before.length + 1 + mention.length + 1
+    const newText = `${before}${mention} ${after}`
+    const newCursorPos = before.length + mention.length + 1
     setText(newText)
     setCursorPos(newCursorPos)
     setTimeout(() => {

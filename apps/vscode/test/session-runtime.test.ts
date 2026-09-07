@@ -962,11 +962,10 @@ describe("session title helpers", () => {
     expect(extractPromptText(undefined)).toBe("");
   });
 
-  it("truncates the fallback title to the first 20 characters with whitespace collapsed", () => {
-    expect(fallbackSessionTitle("  帮我\n修复   登录页样式 ")).toBe("帮我 修复 登录页样式");
-    expect(fallbackSessionTitle("一二三四五六七八九十一二三四五六七八九十一二三四五")).toBe(
-      "一二三四五六七八九十一二三四五六七八九十",
-    );
+  it("uses the first paragraph (up to 60 characters) as the fallback title", () => {
+    expect(fallbackSessionTitle("  帮我\n修复   登录页样式 ")).toBe("帮我");
+    expect(fallbackSessionTitle("\n\n  帮我   修复登录页样式  ")).toBe("帮我 修复登录页样式");
+    expect(fallbackSessionTitle("一".repeat(70))).toBe("一".repeat(60));
     expect(fallbackSessionTitle("   \n  ")).toBeUndefined();
   });
 });
