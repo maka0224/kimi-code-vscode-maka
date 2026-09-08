@@ -956,6 +956,7 @@ class PersistenceAppendLogStore implements IAppendLogStore {
   declare readonly _serviceBrand: undefined;
   readonly onDidWrite: IAppendLogStore['onDidWrite'] = Event.None as IAppendLogStore['onDidWrite'];
   private readonly history: WireRecord[] = [];
+  private readonly sideLogs = new Map<string, unknown[]>();
   private readSeeded = false;
 
   constructor(
@@ -964,14 +965,24 @@ class PersistenceAppendLogStore implements IAppendLogStore {
     private readonly onRead: (event: WireRecord) => void,
   ) { }
 
-  append<R>(_scope: string, _key: string, record: R): void {
+  append<R>(_scope: string, key: string, record: R): void {
+    if (key !== AGENT_WIRE_RECORD_KEY) {
+      const bucket = this.sideLogs.get(key) ?? [];
+      bucket.push(record);
+      this.sideLogs.set(key, bucket);
+      return;
+    }
     const event = record as WireRecord;
     this.onAppend(event);
     this.persistence.append(event);
     this.history.push(cloneRecord(event));
   }
 
-  async *read<R>(_scope: string, _key: string): AsyncIterable<R> {
+  async *read<R>(_scope: string, key: string): AsyncIterable<R> {
+    if (key !== AGENT_WIRE_RECORD_KEY) {
+      for (const record of this.sideLogs.get(key) ?? []) yield record as R;
+      return;
+    }
     const seeding = !this.readSeeded;
     for await (const event of this.persistence.read()) {
       this.onRead(event);
@@ -981,7 +992,11 @@ class PersistenceAppendLogStore implements IAppendLogStore {
     this.readSeeded = true;
   }
 
-  rewrite<R>(_scope: string, _key: string, records: readonly R[]): Promise<void> {
+  rewrite<R>(_scope: string, key: string, records: readonly R[]): Promise<void> {
+    if (key !== AGENT_WIRE_RECORD_KEY) {
+      this.sideLogs.set(key, [...records]);
+      return Promise.resolve();
+    }
     this.persistence.rewrite(records as readonly WireRecord[]);
     return Promise.resolve();
   }

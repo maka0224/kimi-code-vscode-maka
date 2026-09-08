@@ -85,4 +85,49 @@ export interface LoginStatus {
   loggedIn: boolean;
 }
 
+/** 对话轨迹：单次大模型调用的 token 用量（镜像引擎 TokenUsage） */
+export interface LlmCallTraceUsage {
+  readonly inputOther: number;
+  readonly output: number;
+  readonly inputCacheRead: number;
+  readonly inputCacheCreation: number;
+}
+
+/**
+ * 对话轨迹：一次完整的大模型调用记录（引擎 llm-calls.jsonl 的每行）。
+ * request 为发给模型的完整输入，response 为汇总后的原始响应；
+ * messages/tools/message 结构复杂，webview 只做 JSON 展示，故用 unknown。
+ */
+export interface LlmCallTraceRecord {
+  readonly type: "llm.call";
+  readonly time: number;
+  readonly agentId: string;
+  readonly kind: string;
+  readonly turnStep?: string;
+  readonly attempt?: string;
+  readonly projection?: string;
+  readonly model: string;
+  readonly modelAlias?: string;
+  readonly request: {
+    readonly systemPrompt: string;
+    readonly tools: readonly unknown[];
+    readonly messages: readonly unknown[];
+  };
+  readonly response: {
+    readonly message: unknown;
+    readonly usage: LlmCallTraceUsage;
+    readonly providerFinishReason?: string;
+    readonly rawFinishReason?: string;
+    readonly providerMessageId?: string;
+    readonly timing?: Readonly<Record<string, number>>;
+    readonly traceId?: string;
+  };
+}
+
+/** 对话轨迹查询结果：supported=false 表示当前引擎（v1）不支持该能力 */
+export interface LlmCallTraceResult {
+  readonly supported: boolean;
+  readonly records: readonly LlmCallTraceRecord[];
+}
+
 export type { QuestionRequest, QuestionItem, QuestionOption, QuestionResponse } from "./legacy-sdk";

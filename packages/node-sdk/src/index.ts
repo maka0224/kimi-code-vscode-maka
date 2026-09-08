@@ -21,6 +21,8 @@ export { SDKRpcClientBase } from '#/rpc';
 export { KimiForCodingProvider } from '#/kimi-code-model-provider';
 export type { KimiForCodingProviderOptions } from '#/kimi-code-model-provider';
 export { removeProviderFromConfig } from '#/v2/config-mapper';
+export { LLM_CALL_TRACE_FILE, readLlmCallTrace } from '#/v2/llm-call-trace';
+export type { LlmCallTraceRecord, LlmCallTraceUsage } from '#/v2/llm-call-trace';
 
 export {
   applyCatalogProvider,

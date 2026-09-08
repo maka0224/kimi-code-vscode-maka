@@ -1,5 +1,5 @@
 import { Fragment, useRef, useMemo, useState, useEffect } from 'react'
-import { IconSend, IconPlayerStop, IconChevronDown, IconPlus, IconArrowBackUp } from '@tabler/icons-react'
+import { IconSend, IconPlayerStop, IconChevronDown, IconPlus, IconArrowBackUp, IconTimeline } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
 import {
@@ -636,10 +636,27 @@ export function InputArea({ onAuthAction }: InputAreaProps) {
   return (
     <div className="p-2 pt-0! flex flex-col min-h-0">
       <BottomToolbar />
-      {/* 输入框上方按钮栏：提示词优化居右（输入为空时不显示） */}
-      {text.trim() && (
-        <div className="flex items-center justify-end px-0.5 pb-1">
-          <PromptOptimizeButton text={text} onApplied={handleOptimized} />
+      {/* 输入框上方按钮栏：对话轨迹居左（有对话历史才显示），提示词优化居右（输入为空时不显示） */}
+      {(hasConversationHistory || text.trim()) && (
+        <div className="flex items-center justify-between px-0.5 pb-1">
+          {hasConversationHistory ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground"
+                  onClick={() => useSettingsStore.getState().setTraceModalOpen(true)}
+                >
+                  <IconTimeline className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>对话轨迹</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span />
+          )}
+          {text.trim() && <PromptOptimizeButton text={text} onApplied={handleOptimized} />}
         </div>
       )}
       <div className="relative shrink-0">

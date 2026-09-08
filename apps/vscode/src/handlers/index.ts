@@ -8,6 +8,7 @@ import { authHandlers } from "./auth.handler";
 import { usageHandlers } from "./usage.handler";
 import { promptOptimizeHandlers } from "./prompt-optimize.handler";
 import { inputSuggestHandlers } from "./input-suggest.handler";
+import { traceHandlers } from "./trace.handler";
 import type { Handler } from "./types";
 
 export type { Handler, HandlerContext, BroadcastFn, ReloadWebviewFn, ShowLogsFn } from "./types";
@@ -23,4 +24,5 @@ export const handlers: Record<string, Handler<any, any>> = {
   ...usageHandlers,
   ...promptOptimizeHandlers,
   ...inputSuggestHandlers,
+  ...traceHandlers,
 };

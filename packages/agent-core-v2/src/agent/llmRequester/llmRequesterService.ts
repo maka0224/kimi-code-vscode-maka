@@ -85,6 +85,10 @@ import {
   sleepForRetry,
 } from '#/_base/utils/retry';
 import { IBootstrapService } from '#/app/bootstrap/bootstrap';
+import { IAppendLogStore } from '#/persistence/interface/appendLogStore';
+import { onUnexpectedError } from '#/_base/errors/unexpectedError';
+
+import { buildLlmCallTraceRecord, LLM_CALL_TRACE_LOG_KEY } from './llmCallTrace';
 
 const EMPTY_TOOL_PARAMETERS: Record<string, unknown> = {
   type: 'object',
@@ -171,6 +175,7 @@ export class AgentLLMRequesterService implements IAgentLLMRequesterService {
     @IAgentScopeContext private readonly scopeContext: IAgentScopeContext,
     @IAgentStateService private readonly states: IAgentStateService,
     @IBootstrapService private readonly bootstrap: IBootstrapService,
+    @IAppendLogStore private readonly appendLog: IAppendLogStore,
   ) {
     this.states.contributeState(llmRequestTraceKey);
     this.states.contributeState(llmRequesterLastConfigLogSignatureKey);
@@ -338,6 +343,7 @@ export class AgentLLMRequesterService implements IAgentLLMRequesterService {
       policy: ProjectionPolicy | undefined,
     ): Promise<AgentLLMRequestFinish> => {
       onRequestTrace(undefined);
+      const requestedAt = Date.now();
       const projection = projectionNameOf(policy);
       const fields =
         projection === undefined ? request.logFields : { ...request.logFields, projection };
@@ -435,6 +441,7 @@ export class AgentLLMRequesterService implements IAgentLLMRequesterService {
         this.tokenCounting.measured(this.scopeContext.agentContext, request.messages, [message], usage);
       }
       this.logResponse(request.logFields, usage ?? emptyUsage(), timing);
+      this.appendLlmCallTrace(request, fields, input, requestedAt, message, usage, timing, finish);
 
       return {
         message,
@@ -785,6 +792,41 @@ export class AgentLLMRequesterService implements IAgentLLMRequesterService {
     if (timing.serverDecodeMs !== undefined) payload['serverDecodeMs'] = timing.serverDecodeMs;
     if (timing.clientConsumeMs !== undefined) payload['clientConsumeMs'] = timing.clientConsumeMs;
     this.log.info('llm response', payload);
+  }
+
+  private appendLlmCallTrace(
+    request: ResolvedLLMRequest,
+    fields: AgentLLMRequestLogFields,
+    input: { readonly systemPrompt: string; readonly tools: readonly Tool[]; readonly messages: readonly Message[] },
+    requestedAt: number,
+    message: Message,
+    usage: TokenUsage | undefined,
+    timing: ModelRequestTiming | undefined,
+    finish: Extract<ModelRequestEvent, { type: 'finish' }>,
+  ): void {
+    const record = buildLlmCallTraceRecord({
+      time: requestedAt,
+      agentId: this.scopeContext.agentId,
+      kind: requestKindForRecord(fields),
+      turnStep: stringField(fields, 'turnStep'),
+      attempt: stringField(fields, 'attempt'),
+      projection: projectionField(fields),
+      model: request.model.name,
+      modelAlias: request.modelAlias,
+      request: input,
+      response: {
+        message,
+        usage: usage ?? emptyUsage(),
+        providerFinishReason: finish.providerFinishReason,
+        rawFinishReason: finish.rawFinishReason,
+        providerMessageId: finish.id,
+        timing,
+        traceId: finish.traceId,
+      },
+    });
+    this.appendLog.append(this.scopeContext.scope(), LLM_CALL_TRACE_LOG_KEY, record, {
+      onError: onUnexpectedError,
+    });
   }
 
   private defaultTools(): readonly Tool[] {

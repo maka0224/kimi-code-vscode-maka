@@ -165,6 +165,7 @@ interface SettingsState {
   workDirModalOpen: boolean;
   inputSuggestionModalOpen: boolean;
   promptOptimizeModalOpen: boolean;
+  traceModalOpen: boolean;
   currentWorkDir: string | null;
   workspaceRoot: string | null;
   models: ModelConfig[];
@@ -186,6 +187,7 @@ interface SettingsState {
   setWorkDirModalOpen: (open: boolean) => void;
   setInputSuggestionModalOpen: (open: boolean) => void;
   setPromptOptimizeModalOpen: (open: boolean) => void;
+  setTraceModalOpen: (open: boolean) => void;
   setCurrentWorkDir: (workDir: string | null) => void;
   setWorkspaceRoot: (root: string | null) => void;
   initModels: (models: ModelConfig[], defaultModel: string | null, defaultThinking: boolean, defaultThinkingEffort?: string) => void;
@@ -202,6 +204,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   workDirModalOpen: false,
   inputSuggestionModalOpen: false,
   promptOptimizeModalOpen: false,
+  traceModalOpen: false,
   currentWorkDir: null,
   workspaceRoot: null,
   models: [],
@@ -319,6 +322,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setInputSuggestionModalOpen: (inputSuggestionModalOpen) => set({ inputSuggestionModalOpen }),
 
   setPromptOptimizeModalOpen: (promptOptimizeModalOpen) => set({ promptOptimizeModalOpen }),
+  setTraceModalOpen: (traceModalOpen) => set({ traceModalOpen }),
 
   setCurrentWorkDir: (currentWorkDir) => set({ currentWorkDir }),
 

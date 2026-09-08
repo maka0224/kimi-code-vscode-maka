@@ -1034,3 +1034,40 @@ describe('AgentLLMRequesterService tool call id normalization', () => {
     expect(result.message.toolCalls[0]!.id).toBe('Bash_0__2');
   });
 });
+
+describe('AgentLLMRequesterService llm call trace', () => {
+  it('appends a full llm.call record for each completed request', async () => {
+    const { service, records } = createService(createRequester({ value: 0 }), undefined);
+
+    await service.request({ source: { type: 'turn', turnId: 1, step: 2 } });
+
+    const trace = records.filter((record) => record.type === 'llm.call');
+    expect(trace).toHaveLength(1);
+    expect(trace[0]).toMatchObject({
+      agentId: 'test-agent',
+      kind: 'loop',
+      turnStep: '1.2',
+      model: 'wire-model',
+      modelAlias: 'm',
+      request: {
+        systemPrompt: 'system',
+        messages: history,
+      },
+      response: {
+        message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }], toolCalls: [] },
+        providerFinishReason: 'completed',
+        providerMessageId: 'resp-1',
+      },
+    });
+  });
+
+  it('does not record failed requests', async () => {
+    const { service, records } = createService(
+      createRequester({ value: 0 }, new Error('boom')),
+      undefined,
+    );
+
+    await expect(service.request()).rejects.toThrow('boom');
+    expect(records.filter((record) => record.type === 'llm.call')).toHaveLength(0);
+  });
+});

@@ -27,6 +27,7 @@ export const Methods = {
   OpenFolder: "openFolder",
   GetModels: "getModels",
   GetUsage: "getUsage",
+  GetLlmCallTrace: "getLlmCallTrace",
   OptimizePrompt: "optimizePrompt",
   GetOptimizePrefs: "getOptimizePrefs",
   SaveOptimizePrefs: "saveOptimizePrefs",
@@ -293,6 +294,7 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
     case Methods.OpenFolder:
     case Methods.GetModels:
     case Methods.GetUsage:
+    case Methods.GetLlmCallTrace:
     case Methods.GetMCPServers:
     case Methods.AbortChat:
     case Methods.ResetSession:

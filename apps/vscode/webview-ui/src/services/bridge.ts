@@ -14,6 +14,7 @@ import type {
   FileChange,
   SessionConfig,
   ExtensionConfig,
+  LlmCallTraceResult,
   WorkspaceStatus,
   WorkspaceTrustState,
   LoginStatus,
@@ -167,6 +168,11 @@ class Bridge {
 
   getUsage() {
     return this.call<import("shared/bridge").ManagedUsageResult>(Methods.GetUsage);
+  }
+
+  /** 对话轨迹：当前会话的大模型调用完整记录（引擎 llm-calls.jsonl）。 */
+  getLlmCallTrace() {
+    return this.call<LlmCallTraceResult>(Methods.GetLlmCallTrace);
   }
 
   getMCPServers() {

@@ -95,6 +95,11 @@ export class KimiRuntime {
     return id === undefined ? undefined : this.sessions.get(id);
   }
 
+  /** 是否回滚到了 v1 引擎（部分仅 v2 支持的能力据此降级） */
+  get isAgentCoreV1(): boolean {
+    return this.useAgentCoreV1;
+  }
+
   getSession(id: string): SessionRuntime | undefined {
     return this.sessions.get(id);
   }
