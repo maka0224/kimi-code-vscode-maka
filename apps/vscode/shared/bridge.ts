@@ -353,7 +353,8 @@ function validateParams(method: RpcMethod, params: unknown): boolean {
         && isNonEmptyString(params["requestId"])
         && (params["response"] === "approve"
           || params["response"] === "approve_for_session"
-          || params["response"] === "reject");
+          || params["response"] === "reject")
+        && (params["selectedLabel"] === undefined || typeof params["selectedLabel"] === "string");
     case Methods.RespondQuestion:
       return isPlainObject(params)
         && isNonEmptyString(params["rpcRequestId"])

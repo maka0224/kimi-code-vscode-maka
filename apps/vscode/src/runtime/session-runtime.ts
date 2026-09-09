@@ -413,8 +413,8 @@ export class SessionRuntime {
     });
   }
 
-  respondApproval(id: string, response: ApprovalResponse): boolean {
-    return this.reverseRpc.respondApproval(id, response);
+  respondApproval(id: string, response: ApprovalResponse, selectedLabel?: string): boolean {
+    return this.reverseRpc.respondApproval(id, response, selectedLabel);
   }
 
   respondQuestion(id: string, answers: Record<string, string>): boolean {

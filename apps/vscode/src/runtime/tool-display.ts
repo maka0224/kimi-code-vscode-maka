@@ -63,7 +63,12 @@ export function toLegacyDisplay(display: ToolInputDisplay): DisplayBlock[] {
         })),
       }];
     case "plan_review":
-      return [{ type: "plan", text: display.plan }];
+      return [{
+        type: "plan",
+        text: display.plan,
+        // 透传多方案候选项，webview 审批框据此渲染方案选择
+        options: display.options?.map((o) => ({ label: o.label, description: o.description })),
+      }];
     case "search":
     case "url_fetch":
     case "agent_call":

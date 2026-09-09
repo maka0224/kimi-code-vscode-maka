@@ -3,20 +3,26 @@ import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { useApprovalStore } from "@/stores";
 import { DisplayBlocks } from "./DisplayBlocks";
 import { cn } from "@/lib/utils";
-import type { ApprovalResponse } from "shared/legacy-sdk";
+import type { ApprovalResponse, PlanBlock } from "shared/legacy-sdk";
 
 export function ApprovalDialog() {
   const { pending, respondToRequest } = useApprovalStore();
   const [selectedIndex, setSelectedIndex] = useState(1);
   const [expanded, setExpanded] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | undefined>(undefined);
 
   const req = pending[0];
+  const planOptions = (req?.display?.find((b) => b.type === "plan") as PlanBlock | undefined)?.options;
+  const hasPlanOptions = (planOptions?.length ?? 0) >= 2;
 
   // Auto-expand if there's a diff block (code change) or a plan block (plan review)
   useEffect(() => {
     if (req) {
       const hasRichContent = req.display?.some((b) => b.type === "diff" || b.type === "plan") ?? false;
       setExpanded(hasRichContent);
+      // 多方案计划默认选中第一个方案
+      const planBlock = req.display?.find((b) => b.type === "plan") as PlanBlock | undefined;
+      setSelectedOption(planBlock?.options && planBlock.options.length >= 2 ? planBlock.options[0]?.label : undefined);
     }
   }, [req?.id]);
 
@@ -24,7 +30,7 @@ export function ApprovalDialog() {
   const hasDisplay = req.display && req.display.length > 0;
 
   const handleResponse = async (response: ApprovalResponse) => {
-    await respondToRequest(req.id, response);
+    await respondToRequest(req.id, response, response === "reject" ? undefined : selectedOption);
     setSelectedIndex(1);
     setExpanded(false);
   };
@@ -52,6 +58,25 @@ export function ApprovalDialog() {
         {hasDisplay && (
           <div className={cn("overflow-y-auto", expanded ? "flex-1 min-h-0" : "max-h-24")}>
             <DisplayBlocks blocks={req.display} maxHeight={expanded ? "max-h-none" : "max-h-20"} />
+          </div>
+        )}
+
+        {hasPlanOptions && planOptions && (
+          <div className="space-y-1 shrink-0 overflow-y-auto">
+            <div className="text-[11px] text-muted-foreground">选择要执行的方案：</div>
+            {planOptions.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => setSelectedOption(opt.label)}
+                className={cn(
+                  "w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors border cursor-pointer",
+                  selectedOption === opt.label ? "border-blue-500 bg-blue-500/10" : "border-border bg-background hover:bg-muted/50",
+                )}
+              >
+                <span className="font-medium">{opt.label}</span>
+                {opt.description && <span className="block text-muted-foreground mt-0.5">{opt.description}</span>}
+              </button>
+            ))}
           </div>
         )}
 

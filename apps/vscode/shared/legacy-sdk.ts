@@ -40,6 +40,8 @@ export interface ShellBlock {
 export interface PlanBlock {
   type: 'plan';
   text: string;
+  /** 多方案计划的候选项（ExitPlanMode options），审批时需回传选中的 label */
+  options?: { label: string; description?: string }[];
 }
 
 export interface UnknownBlock {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.6
+
+- 修复：多方案计划（计划A/B 等）审阅时不提供方案选择——引擎 `plan_review` display 的 `options` 在宿主适配层被丢弃、webview 审批框只渲染固定三按钮；现打通 `options` 透传与 `selectedLabel` 回传，审批框在含多方案时列出可选方案（默认选中第一个），批准后引擎按所选方案执行（`Selected approach` 写回模型）。
+- 优化：对话轨迹弹窗长记录卡顿——根因是所有条目的 Tools/Messages/Response 在弹窗打开时就全部 `JSON.stringify` 并挂载 DOM（折叠的 `<details>` 只是视觉隐藏）；改为 `LazyDetails` 延迟渲染，折叠只渲染标题行，展开才序列化上屏，同时 `entries` 排序记忆化，无需引入虚拟滚动/分页。
+- 优化：对话轨迹弹窗列表的「提问」「模型」类型标签由主题色/强调色改为 emerald（绿）/sky（蓝）配色，两种条目一眼可辨。
+- 优化：对话轨迹的调用步号展示从 0 起改为从 1 起（引擎内部步号为 0 基且用于 wire 事件，仅在弹窗显示层 +1，同时隐去回合号只保留步号）。
+
 ## 0.3.5
 
 - 特性：对话轨迹——输入框上方按钮栏左侧新增「对话轨迹」按钮，弹窗按时间线展示当前会话的全部用户提问与每次大模型调用记录：发给模型的完整 system prompt、tools、messages 及响应 message/用量/timing/traceId，含各子代理的调用；记录由 v2 引擎在每次请求完成后追加到会话目录 `agents/<agentId>/llm-calls.jsonl`（媒体 data URI 以占位符代替），v1 引擎下提示不支持。

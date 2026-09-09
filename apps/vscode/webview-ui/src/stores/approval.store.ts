@@ -15,7 +15,7 @@ interface ApprovalState {
   pending: ApprovalRequest[];
   addRequest: (request: ApprovalRequest) => void;
   removeRequest: (id: string) => void;
-  respondToRequest: (id: string, response: ApprovalResponse) => Promise<void>;
+  respondToRequest: (id: string, response: ApprovalResponse, selectedLabel?: string) => Promise<void>;
   clearRequests: () => void;
 }
 
@@ -30,8 +30,8 @@ export const useApprovalStore = create<ApprovalState>((set, get) => ({
     set((s) => ({ pending: s.pending.filter((r) => r.id !== id) }));
   },
 
-  respondToRequest: async (id, response) => {
-    await bridge.respondApproval(id, response);
+  respondToRequest: async (id, response, selectedLabel) => {
+    await bridge.respondApproval(id, response, selectedLabel);
     get().removeRequest(id);
   },
 

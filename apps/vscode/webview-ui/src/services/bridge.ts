@@ -220,8 +220,8 @@ class Bridge {
     return this.call<import("shared/types").ProjectFile[]>(Methods.GetProjectFiles, params);
   }
 
-  respondApproval(requestId: string, response: ApprovalResponse) {
-    return this.call<{ ok: boolean }>(Methods.RespondApproval, { requestId, response });
+  respondApproval(requestId: string, response: ApprovalResponse, selectedLabel?: string) {
+    return this.call<{ ok: boolean }>(Methods.RespondApproval, { requestId, response, selectedLabel });
   }
 
   respondQuestion(rpcRequestId: string, questionRequestId: string, answers: Record<string, string>) {

@@ -23,6 +23,8 @@ interface StreamChatParams {
 interface RespondApprovalParams {
   requestId: string;
   response: ApprovalResponse;
+  /** 多方案计划审批时选中的方案 label */
+  selectedLabel?: string;
 }
 
 interface RespondQuestionParams {
@@ -153,7 +155,7 @@ const abortChat: Handler<void, { aborted: boolean }> = async (_, ctx) => {
 };
 
 const respondApproval: Handler<RespondApprovalParams, { ok: boolean }> = async (params, ctx) => {
-  return { ok: ctx.getSession()?.respondApproval(params.requestId, params.response) ?? false };
+  return { ok: ctx.getSession()?.respondApproval(params.requestId, params.response, params.selectedLabel) ?? false };
 };
 
 const respondQuestion: Handler<RespondQuestionParams, { ok: boolean }> = async (params, ctx) => {

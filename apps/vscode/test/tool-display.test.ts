@@ -19,4 +19,14 @@ describe('tool display mapping', () => {
   it('projects plan_review into a single plan block carrying the full plan text', () => {
     expect(toLegacyDisplay({ kind: 'plan_review', plan })).toEqual([{ type: 'plan', text: plan }]);
   });
+
+  it('passes plan_review options through onto the plan block', () => {
+    const options = [
+      { label: '方案A', description: '保守方案' },
+      { label: '方案B', description: '激进方案' },
+    ];
+    expect(toLegacyDisplay({ kind: 'plan_review', plan, options })).toEqual([
+      { type: 'plan', text: plan, options },
+    ]);
+  });
 });

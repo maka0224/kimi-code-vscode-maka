@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { IconLoader2, IconTimeline } from "@tabler/icons-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,12 +37,16 @@ export function TraceModal() {
       .finally(() => setLoading(false));
   }, [traceModalOpen]);
 
-  const entries: TraceEntry[] = [
-    ...messages
-      .filter((m) => m.role === "user")
-      .map((m): TraceEntry => ({ kind: "prompt", time: m.timestamp, text: Content.getText(m.content) })),
-    ...records.map((record): TraceEntry => ({ kind: "call", time: record.time, record })),
-  ].sort((a, b) => a.time - b.time);
+  const entries: TraceEntry[] = useMemo(
+    () =>
+      [
+        ...messages
+          .filter((m) => m.role === "user")
+          .map((m): TraceEntry => ({ kind: "prompt", time: m.timestamp, text: Content.getText(m.content) })),
+        ...records.map((record): TraceEntry => ({ kind: "call", time: record.time, record })),
+      ].sort((a, b) => a.time - b.time),
+    [messages, records],
+  );
 
   return (
     <Dialog open={traceModalOpen} onOpenChange={setTraceModalOpen}>
@@ -84,22 +88,40 @@ function EmptyHint({ text }: { text: string }) {
   return <div className="py-8 text-center text-muted-foreground text-sm">{text}</div>;
 }
 
+/**
+ * 延迟渲染的 details：折叠时只渲染标题行、不挂载内容。
+ * 轨迹条目内容（尤其大体积 JSON）只在展开时才 stringify 并上屏，避免长列表打开弹窗即卡顿。
+ */
+function LazyDetails({ className, summary, children }: { className?: string; summary: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className={className} open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      {summary}
+      {open ? children : null}
+    </details>
+  );
+}
+
 function formatTime(time: number): string {
   return new Date(time).toLocaleTimeString("zh-CN", { hour12: false });
 }
 
 function PromptEntry({ entry }: { entry: Extract<TraceEntry, { kind: "prompt" }> }) {
   return (
-    <details className="rounded-md border border-border px-2.5 py-1.5">
-      <summary className="flex cursor-pointer items-center gap-2 text-xs">
-        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-primary">提问</span>
-        <span className="min-w-0 flex-1 line-clamp-2">{entry.text || "（媒体消息）"}</span>
-        <span className="shrink-0 text-muted-foreground">{formatTime(entry.time)}</span>
-      </summary>
+    <LazyDetails
+      className="rounded-md border border-border px-2.5 py-1.5"
+      summary={
+        <summary className="flex cursor-pointer items-center gap-2 text-xs">
+          <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">提问</span>
+          <span className="min-w-0 flex-1 line-clamp-2">{entry.text || "（媒体消息）"}</span>
+          <span className="shrink-0 text-muted-foreground">{formatTime(entry.time)}</span>
+        </summary>
+      }
+    >
       <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all text-xs text-muted-foreground">
         {entry.text}
       </pre>
-    </details>
+    </LazyDetails>
   );
 }
 
@@ -107,32 +129,45 @@ function CallEntry({ record }: { record: LlmCallTraceRecord }) {
   const usage = record.response.usage;
   const inputTokens = usage.inputOther + usage.inputCacheRead + usage.inputCacheCreation;
   const agentLabel = record.agentId === "main" ? "主代理" : `子代理 ${record.agentId}`;
-  const stepLabel = record.turnStep ? `第 ${record.turnStep} 步` : record.kind === "compaction" ? "压缩" : "调用";
+  // turnStep 形如 "1.0"（回合.步），引擎步号从 0 起，展示时 +1 只显示步号
+  const stepNum = record.turnStep?.split(".").pop();
+  const stepLabel = stepNum === undefined ? (record.kind === "compaction" ? "压缩" : "调用") : `第 ${Number(stepNum) + 1} 步`;
   return (
-    <details className="rounded-md border border-border px-2.5 py-1.5">
-      <summary className="flex cursor-pointer items-center gap-2 text-xs">
-        <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 text-accent-foreground">模型</span>
-        <span className="min-w-0 flex-1 line-clamp-2">
-          {stepLabel} · {agentLabel} · {record.modelAlias ?? record.model} · 输入 {inputTokens} / 输出 {usage.output}
-        </span>
-        <span className="shrink-0 text-muted-foreground">{formatTime(record.time)}</span>
-      </summary>
+    <LazyDetails
+      className="rounded-md border border-border px-2.5 py-1.5"
+      summary={
+        <summary className="flex cursor-pointer items-center gap-2 text-xs">
+          <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-600 dark:text-sky-400">模型</span>
+          <span className="min-w-0 flex-1 line-clamp-2">
+            {stepLabel} · {agentLabel} · {record.modelAlias ?? record.model} · 输入 {inputTokens} / 输出 {usage.output}
+          </span>
+          <span className="shrink-0 text-muted-foreground">{formatTime(record.time)}</span>
+        </summary>
+      }
+    >
       <div className="mt-1.5 space-y-1.5">
         <TraceSection title="System Prompt" value={record.request.systemPrompt} />
         <TraceSection title={`Tools（${record.request.tools.length}）`} value={record.request.tools} json />
         <TraceSection title={`Messages（${record.request.messages.length}）`} value={record.request.messages} json />
         <TraceSection title="Response" value={record.response} json />
       </div>
-    </details>
+    </LazyDetails>
   );
 }
 
 function TraceSection({ title, value, json }: { title: string; value: unknown; json?: boolean }) {
-  const text = json === true ? JSON.stringify(value, null, 2) : String(value);
   return (
-    <details className="rounded border border-border/60 bg-muted/40 px-2 py-1">
-      <summary className="cursor-pointer text-xs text-muted-foreground">{title}</summary>
-      <pre className="mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">{text}</pre>
-    </details>
+    <LazyDetails
+      className="rounded border border-border/60 bg-muted/40 px-2 py-1"
+      summary={<summary className="cursor-pointer text-xs text-muted-foreground">{title}</summary>}
+    >
+      <TraceSectionBody value={value} json={json === true} />
+    </LazyDetails>
   );
+}
+
+/** 展开时才 stringify 大体积内容，折叠状态不产生任何序列化开销 */
+function TraceSectionBody({ value, json }: { value: unknown; json: boolean }) {
+  const text = json ? JSON.stringify(value, null, 2) : String(value);
+  return <pre className="mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">{text}</pre>;
 }

@@ -51,14 +51,14 @@ export class ReverseRpcController {
     });
   }
 
-  respondApproval(id: string, response: ApprovalResponse): boolean {
+  respondApproval(id: string, response: ApprovalResponse, selectedLabel?: string): boolean {
     const resolve = this.approvals.get(id);
     if (!resolve) return false;
     this.approvals.delete(id);
     if (response === "approve_for_session") {
-      resolve({ decision: "approved", scope: "session" });
+      resolve({ decision: "approved", scope: "session", selectedLabel });
     } else if (response === "approve") {
-      resolve({ decision: "approved" });
+      resolve({ decision: "approved", selectedLabel });
     } else {
       resolve({ decision: "rejected" });
     }
